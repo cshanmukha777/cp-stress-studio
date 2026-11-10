@@ -46,6 +46,8 @@ async function prepare(script, options = {}) {
         signal: options.signal,
       });
       if (compilation.status !== "AC") {
+        if (compilation.status === "TLE")
+          compilation.stderr += "\nCompilation timed out after 30000 ms";
         if (compilation.status !== "CANCELLED") compilation.status = "CE";
         await dispose();
         return { error: compilation, dispose };

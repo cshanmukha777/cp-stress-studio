@@ -267,6 +267,7 @@ export default function App() {
           onLoad={loadRecord}
           onSave={saveRecord}
           workspaceId={workspaceId}
+          onRemoveWorkspace={() => setWorkspaceId(null)}
           busy={execution.busy}
         />
       )}

@@ -4,6 +4,7 @@ export default function RecordsDrawer({
   onLoad,
   onSave,
   workspaceId,
+  onRemoveWorkspace,
   busy,
 }) {
   const [collection, setCollection] = useState("workspaces"),
@@ -60,6 +61,8 @@ export default function RecordsDrawer({
   async function remove(row) {
     try {
       await window.electronAPI.db.remove(collection, row.id);
+      if (collection === "workspaces" && row.id === workspaceId)
+        onRemoveWorkspace();
       setSelected(null);
       await refresh();
     } catch (e) {
