@@ -28,6 +28,10 @@ Baseline: `70cb81f` (`feat: complete day 1 electron setup`). The baseline contai
 - Rendered single-run and counterexample views inspected; screenshots are in `docs/images/`.
 - Production build still reports a large JavaScript chunk due to locally bundled Monaco (~2.95 MB uncompressed). No CDN access is needed.
 
+## CI verification
+
+[Linux and macOS CI](https://github.com/cshanmukha777/cp-stress-studio/actions/runs/42760546144) passed installation, lint, backend tests and all desktop workflows, including JDK 21 execution. The final saved-test state regression is additionally covered by the desktop suite.
+
 ## Release boundaries
 
 These milestones implement the requested local workbench, not a packaged/signed desktop release. Production readiness must not be inferred from Linux tests alone. Check CI for the actual macOS/JDK results; Windows process-tree termination and telemetry availability have not been exercised here. Packaging, signing, notarization and installer distribution remain outside Day 2/Day 3 scope.
