@@ -32,3 +32,4 @@ playwright-report/
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
+server/.env
