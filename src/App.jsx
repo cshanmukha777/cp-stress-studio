@@ -60,6 +60,7 @@ export default function App() {
       setExpected(row.data.expected || "");
       setCheckExpected(Boolean(row.data.checkExpected));
       setMode("single");
+      execution.setResult(null);
     } else if (collection === "workspaces") {
       const d = row.data;
       setSingle(d.single);
@@ -250,6 +251,7 @@ export default function App() {
               setExpected(execution.result.expected || "");
               setCheckExpected(true);
               setMode("single");
+              execution.setResult(null);
             }}
           >
             Open in single run

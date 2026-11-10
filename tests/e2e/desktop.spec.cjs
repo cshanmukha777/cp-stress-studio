@@ -59,6 +59,10 @@ test("stress mismatch saves input, loads history and persists workspace across r
   await expect(page.locator(".record-title")).toContainText("Counterexample 1");
   await page.getByRole("button", { name: "Load", exact: true }).click();
   await expect(page.getByLabel("Standard input")).not.toHaveValue("");
+  await expect(page.locator(".result-pane .verdict")).toHaveCount(0);
+  await expect(page.getByLabel("Execution output")).toContainText(
+    "Output appears here",
+  );
   await page
     .getByRole("button", { name: "Saved records", exact: true })
     .click();
