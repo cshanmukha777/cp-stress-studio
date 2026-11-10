@@ -3,6 +3,7 @@ import cors from 'cors';
 import { prisma } from './db/prisma.js';
 import authRouter from './routes/auth.routes.js';
 import problemRouter from './routes/problem.routes.js';
+import profileRouter from './routes/profile.routes.js';
 
 const app = express();
 app.use(cors());
@@ -15,5 +16,6 @@ app.get('/api/health', async (_req, res) => {
 
 app.use('/api/auth', authRouter);
 app.use('/api/problems', problemRouter);
+app.use('/api/profile', profileRouter);
 
 export default app;
