@@ -1,4 +1,120 @@
 @import "tailwindcss";
 @config "../tailwind.config.js";
-:root{font-family:system-ui,-apple-system,sans-serif;color:#ededed;background:#141415;font-size:13px;font-synthesis:none;color-scheme:dark;--mono:'JetBrains Mono','Fira Code',ui-monospace,monospace;--border:#303034;--muted:#a1a1aa}
-*{box-sizing:border-box}body{margin:0}button,input,select,textarea{font:inherit}button,select,input{border:1px solid var(--border);background:#232325;color:inherit;border-radius:4px}button,select{padding:4px 12px;min-height:32px}button{cursor:pointer}button:hover:not(:disabled){background:#323236}button:disabled{opacity:.45;cursor:default}button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #6eb7b0;outline-offset:2px}textarea{resize:none;border:0;background:#19191b;color:#ededed;padding:12px;line-height:1.6;font-family:var(--mono);width:100%;min-height:80px}input[type=number]{width:88px;padding:4px 8px}pre{font-family:var(--mono);white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;line-height:1.6;margin:0;padding:12px}h1{font-size:16px;font-weight:500;margin:0}h2{font-size:14px;font-weight:500;margin:0}p{margin:0}kbd{font:11px var(--mono);border:1px solid #4b4b50;border-radius:4px;padding:2px 4px;margin-left:8px}input[type=checkbox]{accent-color:#71b9b1}label{display:flex;gap:8px;align-items:center}.muted{color:var(--muted)}.error{color:#fda4af}.empty{padding:24px;color:var(--muted)}
+:root {
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
+  color: #ededed;
+  background: #141415;
+  font-size: 13px;
+  font-synthesis: none;
+  color-scheme: dark;
+  --mono: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+  --border: #303034;
+  --muted: #a1a1aa;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+button,
+select,
+input {
+  border: 1px solid var(--border);
+  background: #232325;
+  color: inherit;
+  border-radius: 4px;
+}
+button,
+select {
+  padding: 4px 12px;
+  min-height: 32px;
+}
+button {
+  cursor: pointer;
+}
+button:hover:not(:disabled) {
+  background: #323236;
+}
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #6eb7b0;
+  outline-offset: 2px;
+}
+textarea {
+  resize: none;
+  border: 0;
+  background: #19191b;
+  color: #ededed;
+  padding: 12px;
+  line-height: 1.6;
+  font-family: var(--mono);
+  width: 100%;
+  min-height: 80px;
+}
+input[type="number"] {
+  width: 88px;
+  padding: 4px 8px;
+}
+pre {
+  font-family: var(--mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0;
+  padding: 12px;
+}
+h1 {
+  font-size: 16px;
+  font-weight: 500;
+  margin: 0;
+}
+h2 {
+  font-size: 14px;
+  font-weight: 500;
+  margin: 0;
+}
+p {
+  margin: 0;
+}
+kbd {
+  font: 11px var(--mono);
+  border: 1px solid #4b4b50;
+  border-radius: 4px;
+  padding: 2px 4px;
+  margin-left: 8px;
+}
+input[type="checkbox"] {
+  accent-color: #71b9b1;
+}
+label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.muted {
+  color: var(--muted);
+}
+.error {
+  color: #fda4af;
+}
+.empty {
+  padding: 24px;
+  color: var(--muted);
+}

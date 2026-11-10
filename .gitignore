@@ -25,3 +25,10 @@ out
 *.njsproj
 *.sln
 *.sw?
+
+# Verification artifacts and local SQLite files
+test-results/
+playwright-report/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
