@@ -1,0 +1,11 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const { stressTest, normalize } = require('../electron/execution/stress');
+const py = code => ({language:'python',code});
+const base = { generator:py('import os\nprint(os.environ["CP_STRESS_SEED"])'), brute:py('print(int(input())*2)'), optimal:py('print(int(input())*2)'), iterations:3,timeLimit:1000 };
+test('normalizes whitespace but preserves token differences',()=> {assert.equal(normalize(' 1\r\n 2 '),'1 2');assert.notEqual(normalize('1 2'),normalize('12'));});
+test('streams each successful iteration',async()=>{const progress=[];const r=await stressTest(base,{onProgress:p=>progress.push(p)});assert.equal(r.status,'AC');assert.equal(r.completed,3);assert.equal(progress.filter(p=>p.phase==='running').length,3);});
+test('captures exact first counterexample',async()=>{const r=await stressTest({...base,optimal:py('print(0)')});assert.equal(r.status,'WA');assert.equal(r.input,'1\n');assert.equal(r.expected,'2\n');assert.equal(r.actual,'0\n');assert.equal(r.iteration,1);});
+test('identifies generator runtime error',async()=>{const r=await stressTest({...base,generator:py('raise Exception("bad")')});assert.equal(r.status,'RE');assert.equal(r.role,'generator');});
+test('halts on target timeout',async()=>{assert.equal((await stressTest({...base,optimal:py('while True: pass'),timeLimit:100})).status,'TLE');});
+test('supports cancellation',async()=>{const c=new AbortController();c.abort();assert.equal((await stressTest(base,{signal:c.signal})).status,'CANCELLED');});
