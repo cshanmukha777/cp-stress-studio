@@ -4,10 +4,12 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "unset ELECTRON_RUN_AS_NODE && concurrently \"vite --strictPort\" \"wait-on http://localhost:5173 && cross-env NODE_ENV=development electron .\"",
+    "dev": "concurrently \"vite --strictPort\" \"wait-on http://localhost:5173 && cross-env NODE_ENV=development electron .\"",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --test tests/*.test.cjs",
+    "start": "electron ."
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
@@ -35,5 +37,9 @@
     "tailwindcss": "^4.3.5",
     "vite": "^8.3.6",
     "wait-on": "^9.5.1"
+  },
+  "main": "electron/main.js",
+  "engines": {
+    "node": ">=22.13.0"
   }
 }

@@ -1,9 +1,5 @@
-import { app, BrowserWindow } from 'electron';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const { app, BrowserWindow } = require('electron');
+const path = require('node:path');
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
@@ -17,7 +13,7 @@ function createWindow() {
   });
 
   // In development, load the Vite local server; in production, load the built files
-  const isDev = !app.isPackaged;
+  const isDev = process.env.NODE_ENV === 'development';
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
