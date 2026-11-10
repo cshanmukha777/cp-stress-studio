@@ -4,20 +4,25 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "unset ELECTRON_RUN_AS_NODE && concurrently \"vite --strictPort\" \"wait-on http://localhost:5173 && cross-env NODE_ENV=development electron .\"",
+    "dev": "concurrently \"vite --strictPort\" \"wait-on http://localhost:5173 && cross-env NODE_ENV=development electron .\"",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --test --test-concurrency=1 tests/*.test.cjs",
+    "start": "electron .",
+    "test:desktop": "npm run build && playwright test"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
     "@prisma/client": "^7.10.1",
+    "monaco-editor": "0.57.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-split": "^2.0.14"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.65.0",
     "@tailwindcss/postcss": "^4.3.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
@@ -35,5 +40,9 @@
     "tailwindcss": "^4.3.5",
     "vite": "^8.3.6",
     "wait-on": "^9.5.1"
+  },
+  "main": "electron/main.js",
+  "engines": {
+    "node": ">=22.13.0"
   }
 }
