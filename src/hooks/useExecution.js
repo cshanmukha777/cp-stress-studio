@@ -18,5 +18,6 @@ export function useExecution() {
    finally {active.current=null;setBusy(false)}
  }
  async function cancel(){try{if(active.current)await window.electronAPI.cancel(active.current)}catch(e){setError(e.message)}}
- return {busy,result,logs,progress,error,run,cancel,setResult}
+ function loadResult(value){setLogs('');setProgress(null);setError('');setResult(value)}
+ return {busy,result,logs,progress,error,run,cancel,setResult:loadResult}
 }

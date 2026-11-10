@@ -15,6 +15,7 @@ function supervise(command, args, { cwd, stdin = '', timeout = 2000, signal, onO
   return new Promise((resolve) => {
     const start = process.hrtime.bigint();
     let stdout = '', stderr = '', status = null, memory = null, bytes = 0;
+    let memoryProbe = null;
     const child = spawn(command, args, { cwd, env, detached: process.platform !== 'win32', windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
     const stop = (verdict) => { status ||= verdict; killTree(child); };
     const abort = () => stop('CANCELLED');
@@ -26,20 +27,29 @@ function supervise(command, args, { cwd, stdin = '', timeout = 2000, signal, onO
           if (rss) memory = Math.max(memory || 0, Number(rss[1]));
         } catch { /* process ended between samples */ }
       }
-    }, 10);
+      if (process.platform === 'darwin' && child.pid && !memoryProbe) {
+        memoryProbe = spawn('ps', ['-o', 'rss=', '-p', String(child.pid)], {stdio:['ignore','pipe','ignore']});
+        let output = '';
+        memoryProbe.stdout.on('data', chunk => { output += chunk; });
+        memoryProbe.on('error', () => {});
+        memoryProbe.on('close', () => { const rss = Number(output.trim()); if (rss > 0) memory = Math.max(memory || 0, rss); memoryProbe = null; });
+      }
+    }, process.platform === 'linux' ? 10 : 50);
     const capture = (stream, chunk) => {
-      bytes += chunk.length;
+      bytes += Buffer.byteLength(chunk);
       if (bytes > 1024 * 1024) { stop('RE'); return; }
       const text = chunk.toString();
       if (stream === 'stdout') stdout += text; else stderr += text;
       onOutput?.({ stream, text });
     };
+    child.stdout.setEncoding('utf8');
+    child.stderr.setEncoding('utf8');
     child.stdout.on('data', (chunk) => capture('stdout', chunk));
     child.stderr.on('data', (chunk) => capture('stderr', chunk));
     child.stdin.on('error', () => {}); // A program may exit without consuming stdin.
     child.on('error', (error) => { status ||= 'RE'; stderr += `${command}: ${error.message}`; });
     child.on('close', (code) => {
-      clearTimeout(timer); clearInterval(sampler); signal?.removeEventListener('abort', abort);
+      clearTimeout(timer); clearInterval(sampler); memoryProbe?.kill('SIGKILL'); signal?.removeEventListener('abort', abort);
       killTree(child); // Also reap descendants left behind by an exited parent.
       if (bytes > 1024 * 1024) stderr += '\nOutput limit exceeded (1 MiB)';
       resolve({ status: status || (code === 0 ? 'AC' : 'RE'), stdout, stderr, time: Number(process.hrtime.bigint() - start) / 1e6, memory });

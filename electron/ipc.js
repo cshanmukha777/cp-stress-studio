@@ -1,4 +1,4 @@
-const { runCode } = require('./execution/runner');
+const { runCode, validateInput } = require('./execution/runner');
 const { stressTest, normalize } = require('./execution/stress');
 function registerIPC(ipcMain, db, isTrusted) {
   const active = new Map();
@@ -14,6 +14,7 @@ function registerIPC(ipcMain, db, isTrusted) {
     const sender = event.sender;
     if (!request || typeof request.runId !== 'string' || request.runId.length > 100) throw new Error('Invalid run ID');
     if (active.has(sender.id)) throw new Error('An execution is already running');
+    if (mode === 'single' && request.checkExpected) validateInput(request.expected);
     const controller = new AbortController();
     active.set(sender.id, {controller, runId:request.runId});
     const abort = () => controller.abort();
