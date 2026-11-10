@@ -1,122 +1,20 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
+import { useEffect, useState } from 'react'
+import CodeEditor from './components/CodeEditor'
+import Result from './components/Result'
+import { useExecution } from './hooks/useExecution'
 import './App.css'
-
-function App() {
-  const [count, setCount] = useState(0)
-
-  return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+const initial = {language:'cpp',code:'#include <iostream>\nusing namespace std;\n\nint main() {\n    long long a, b;\n    cin >> a >> b;\n    cout << a + b << "\\n";\n}\n'}
+export default function App() {
+ const [single,setSingle]=useState(initial),[stdin,setStdin]=useState('2 3\n'),[expected,setExpected]=useState('5\n'),[checkExpected,setCheckExpected]=useState(false),[timeLimit,setTimeLimit]=useState(2000)
+ const execution=useExecution()
+ const run=()=>execution.run('single',{...single,stdin,expected,checkExpected,timeLimit})
+ useEffect(()=>{const key=e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();run()}if(e.key==='Escape')execution.cancel()};window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key)})
+ return <main className="studio">
+ <header className="app-header"><h1>CP Stress Studio</h1><span className="muted">Local execution workbench</span></header>
+ <div className="toolbar"><span className="tab active">Single run</span><div className="spacer"/><label>Time limit <input aria-label="Time limit in milliseconds" type="number" min="50" max="30000" value={timeLimit} onChange={e=>setTimeLimit(Number(e.target.value))}/> ms</label><button className="primary" disabled={execution.busy} onClick={run}>Run <kbd>⌘/Ctrl ↵</kbd></button><button disabled={!execution.busy} onClick={execution.cancel}>Stop</button></div>
+ {!window.electronAPI && <p className="notice">Browser preview — execution and saved records are available in the desktop app</p>}
+ {execution.error && <p className="error notice" role="alert">{execution.error}</p>}
+ <div className="single-workbench"><CodeEditor title="Solution" value={single} onChange={setSingle}/><div className="input-column"><label className="text-pane"><span className="pane-header">Standard input</span><textarea spellCheck="false" value={stdin} onChange={e=>setStdin(e.target.value)}/></label><label className="text-pane"><span className="pane-header"><span>Expected output</span><span><input type="checkbox" checked={checkExpected} onChange={e=>setCheckExpected(e.target.checked)}/> Compare</span></span><textarea spellCheck="false" value={expected} onChange={e=>setExpected(e.target.value)}/></label></div></div>
+ <Result {...execution}/><footer>AC without comparison means successful execution · Java entry class: Main · Escape stops execution</footer>
+ </main>
 }
-
-export default App
