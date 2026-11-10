@@ -3,6 +3,7 @@ import CodeEditor from "./components/CodeEditor";
 import Result from "./components/Result";
 import StressWorkbench from "./components/StressWorkbench";
 import RecordsDrawer from "./components/RecordsDrawer";
+import CatalogPanel from "./catalog/CatalogPanel";
 import { useExecution } from "./hooks/useExecution";
 import "./App.css";
 const initial = {
@@ -31,6 +32,7 @@ export default function App() {
   const [drawer, setDrawer] = useState(false),
     [workspaceId, setWorkspaceId] = useState(null);
   const execution = useExecution();
+  const [showCatalog, setShowCatalog] = useState(false);
   const snapshot = () => ({
     single,
     stdin,
@@ -239,6 +241,7 @@ export default function App() {
       )}
       {execution.result?.input !== undefined && (
         <div className="failure-actions">
+          <button onClick={() => setShowCatalog(true)}>Account &amp; Problems</button>
           <button onClick={saveFailure}>
             Save counterexample as test case
           </button>
@@ -271,6 +274,7 @@ export default function App() {
           busy={execution.busy}
         />
       )}
+        {showCatalog && <CatalogPanel onClose={() => setShowCatalog(false)} />}
     </main>
   );
 }
