@@ -1,3 +1,16 @@
+.cat-overlay { position: fixed; inset: 0; z-index: 50; background: #0f1114; color: #e6e6e6; display: flex; flex-direction: column; font-family: system-ui, sans-serif; }
+.cat-header { display: flex; align-items: center; gap: 12px; padding: 12px 24px; border-bottom: 1px solid #2a2d33; }
+.cat-header h1 { font-size: 18px; margin: 0; }
+.cat-spacer { flex: 1; }
+.cat-muted { color: #a0a6b0; font-size: 14px; }
+.cat-body { flex: 1; overflow: auto; padding: 24px; }
+.cat-card { max-width: 380px; margin: 40px auto; display: flex; flex-direction: column; gap: 14px; background: #16181d; border: 1px solid #2a2d33; border-radius: 10px; padding: 24px; }
+.cat-card h2 { margin: 0 0 4px; font-size: 18px; }
+.cat-card label { display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.cat-card input { background: #0f1114; border: 1px solid #2a2d33; border-radius: 6px; padding: 10px; color: #e6e6e6; }
+.cat-error { color: #ff7b72; margin: 0; font-size: 14px; }
+.cat-link { background: none; border: 0; color: #79b8ff; cursor: pointer; font-size: 14px; }
+
 .cat-problems { max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
 .cat-filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
 .cat-filters label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #a0a6b0; }
@@ -6,3 +19,11 @@
 .cat-table th, .cat-table td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #2a2d33; }
 .cat-table th { color: #a0a6b0; font-weight: 500; }
 .cat-pager { display: flex; align-items: center; justify-content: space-between; }
+
+.cat-tabs { display: flex; gap: 6px; margin-left: 16px; }
+.cat-tab { background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 6px 12px; color: #a0a6b0; cursor: pointer; }
+.cat-tab.active { background: #1f2329; border-color: #2a2d33; color: #e6e6e6; }
+.cat-profile { max-width: 460px; }
+.cat-profile textarea, .cat-profile select { background: #0f1114; border: 1px solid #2a2d33; border-radius: 6px; padding: 10px; color: #e6e6e6; font-family: inherit; }
+.cat-profile input:disabled { opacity: 0.6; }
+.cat-ok { color: #56d364; margin: 0; font-size: 14px; }
