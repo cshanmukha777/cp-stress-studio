@@ -137,6 +137,7 @@ export default function App() {
         <h1>CP Stress Studio</h1>
         <span className="muted">Local execution workbench</span>
         <div className="spacer" />
+        <button onClick={() => setShowCatalog(true)}>Account &amp; Problems</button>
         <button
           disabled={!window.electronAPI}
           onClick={() => setDrawer(!drawer)}
@@ -242,7 +243,6 @@ export default function App() {
       )}
       {execution.result?.input !== undefined && (
         <div className="failure-actions">
-          <button onClick={() => setShowCatalog(true)}>Account &amp; Problems</button>
           <button onClick={saveFailure}>
             Save counterexample as test case
           </button>
@@ -276,7 +276,7 @@ export default function App() {
           busy={execution.busy}
         />
       )}
-        {showCatalog && <CatalogPanel onClose={() => setShowCatalog(false)} />}
+      {showCatalog && <CatalogPanel onClose={() => setShowCatalog(false)} />}
     </main>
   );
 }
