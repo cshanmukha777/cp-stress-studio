@@ -11,9 +11,7 @@ export default function ProblemsPage() {
   const [sortBy, setSortBy] = useState("createdAt");
   const [order, setOrder] = useState("desc");
   const [page, setPage] = useState(1);
-  const [data, setData] = useState(null);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState({ key: "", data: null, error: "" });
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -23,31 +21,29 @@ export default function ProblemsPage() {
     return () => clearTimeout(t);
   }, [q]);
 
+  const key = JSON.stringify([search, minD, maxD, sortBy, order, page]);
+
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     const params = { page, pageSize: PAGE_SIZE, sortBy, order };
     if (search) params.q = search;
     if (minD) params.minDifficulty = minD;
     if (maxD) params.maxDifficulty = maxD;
     api
       .problems(params)
-      .then((d) => {
-        if (!cancelled) {
-          setData(d);
-          setError("");
-        }
+      .then((data) => {
+        if (!cancelled) setResult({ key, data, error: "" });
       })
       .catch((e) => {
-        if (!cancelled) setError(e.message);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setResult({ key, data: null, error: e.message });
       });
     return () => {
       cancelled = true;
     };
-  }, [search, minD, maxD, sortBy, order, page]);
+  }, [key, search, minD, maxD, sortBy, order, page]);
+
+  const loading = result.key !== key;
+  const { data, error } = result;
 
   const changeFilter = (setter) => (e) => {
     setter(e.target.value);
