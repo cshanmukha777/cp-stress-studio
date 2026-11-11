@@ -1,3 +1,4 @@
+import { streamSubmission } from "../catalog/execution";
 import { useEffect, useRef, useState } from "react";
 export function useExecution() {
   const [busy, setBusy] = useState(false),
@@ -6,25 +7,23 @@ export function useExecution() {
     [progress, setProgress] = useState(null),
     [error, setError] = useState("");
   const active = useRef(null);
+  const controller = useRef(null);
   useEffect(() => {
     const api = window.electronAPI;
     if (!api) return;
-    const offOutput = api.onOutput((data) => {
-      if (data.runId === active.current)
-        setLogs((old) => (old + data.text).slice(-1024 * 1024));
-    });
     const offProgress = api.onProgress((data) => {
       if (data.runId === active.current) setProgress(data);
     });
     return () => {
-      offOutput();
+      controller.current?.abort();
       offProgress();
-      if (active.current) api.cancel(active.current).catch(() => {});
+      if (active.current && !controller.current)
+        api.cancel(active.current).catch(() => {});
     };
   }, []);
   async function run(mode, request) {
     if (active.current) return;
-    if (!window.electronAPI) {
+    if (mode === "stress" && !window.electronAPI) {
       setError("Open the desktop app to execute code");
       return;
     }
@@ -36,20 +35,33 @@ export function useExecution() {
     setProgress(null);
     setError("");
     try {
-      const response = await window.electronAPI[
-        mode === "single" ? "runCode" : "startStress"
-      ]({ ...request, runId });
-      setResult(response);
+      if (mode === "single") {
+        controller.current = new AbortController();
+        const response = await streamSubmission(
+          request,
+          controller.current.signal,
+          (event, payload) => {
+            if (event === "output")
+              setLogs((old) => (old + payload.text).slice(-1024 * 1024));
+          },
+        );
+        setResult(response);
+      } else {
+        setResult(await window.electronAPI.startStress({ ...request, runId }));
+      }
     } catch (e) {
-      setError(e.message);
+      if (e.name === "AbortError") setResult({ status: "CANCELLED" });
+      else setError(e.message);
     } finally {
+      controller.current = null;
       active.current = null;
       setBusy(false);
     }
   }
   async function cancel() {
     try {
-      if (active.current) await window.electronAPI.cancel(active.current);
+      if (controller.current) controller.current.abort();
+      else if (active.current) await window.electronAPI.cancel(active.current);
     } catch (e) {
       setError(e.message);
     }

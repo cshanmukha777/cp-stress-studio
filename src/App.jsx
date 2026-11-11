@@ -3,6 +3,7 @@ import CodeEditor from "./components/CodeEditor";
 import Result from "./components/Result";
 import StressWorkbench from "./components/StressWorkbench";
 import RecordsDrawer from "./components/RecordsDrawer";
+import ProblemRecords from "./components/ProblemRecords";
 import CatalogPanel from "./catalog/CatalogPanel";
 import { useExecution } from "./hooks/useExecution";
 import "./App.css";
@@ -31,6 +32,10 @@ export default function App() {
   });
   const [drawer, setDrawer] = useState(false),
     [workspaceId, setWorkspaceId] = useState(null);
+  const [problemId, setProblemId] = useState("");
+  const [solutionId, setSolutionId] = useState(undefined);
+  const [caseNumber, setCaseNumber] = useState(undefined);
+  const [problemRecords, setProblemRecords] = useState(false);
   const execution = useExecution();
   const [showCatalog, setShowCatalog] = useState(false);
   const snapshot = () => ({
@@ -57,6 +62,8 @@ export default function App() {
     if (collection === "workspaces") setWorkspaceId(row.id);
   }
   function loadRecord(collection, row) {
+    setSolutionId(undefined);
+    setCaseNumber(undefined);
     if (collection === "tests") {
       setStdin(row.data.stdin);
       setExpected(row.data.expected || "");
@@ -117,7 +124,16 @@ export default function App() {
     execution.run(
       mode,
       mode === "single"
-        ? { ...single, stdin, expected, checkExpected, timeLimit, workspaceId }
+        ? {
+            ...single,
+            stdin,
+            expected,
+            checkExpected,
+            timeLimit,
+            problemId,
+            solutionId,
+            caseNumber,
+          }
         : { ...scripts, iterations, timeLimit, workspaceId },
     );
   useEffect(() => {
@@ -137,6 +153,15 @@ export default function App() {
         <h1>CP Stress Studio</h1>
         <span className="muted">Local execution workbench</span>
         <div className="spacer" />
+        <button onClick={() => setShowCatalog(true)}>
+          Account &amp; Problems
+        </button>
+        <button
+          disabled={execution.busy || !problemId}
+          onClick={() => setProblemRecords(true)}
+        >
+          Problem records
+        </button>
         <button
           disabled={!window.electronAPI}
           onClick={() => setDrawer(!drawer)}
@@ -159,6 +184,23 @@ export default function App() {
           </button>
         ))}
         <div className="spacer" />
+        {mode === "single" && (
+          <label>
+            Problem ID
+            <input
+              type="number"
+              min="1"
+              value={problemId}
+              disabled={execution.busy}
+              onChange={(event) => {
+                setProblemId(event.target.value);
+                setSolutionId(undefined);
+                setCaseNumber(undefined);
+                setProblemRecords(false);
+              }}
+            />
+          </label>
+        )}
         {mode === "stress" && (
           <label>
             Iterations{" "}
@@ -203,14 +245,30 @@ export default function App() {
       )}
       {mode === "single" ? (
         <div className="single-workbench">
-          <CodeEditor title="Solution" value={single} onChange={setSingle} />
+          <CodeEditor
+            title="Solution"
+            value={single}
+            onChange={(value) => {
+              setSingle(value);
+              setSolutionId(undefined);
+            }}
+          />
           <div className="input-column">
+            {caseNumber !== undefined && (
+              <p>
+                Using saved test case #{caseNumber}. Edit input to switch to a
+                custom case.
+              </p>
+            )}
             <label className="text-pane">
               <span className="pane-header">Standard input</span>
               <textarea
                 spellCheck="false"
                 value={stdin}
-                onChange={(e) => setStdin(e.target.value)}
+                onChange={(e) => {
+                  setStdin(e.target.value);
+                  setCaseNumber(undefined);
+                }}
               />
             </label>
             <label className="text-pane">
@@ -220,7 +278,10 @@ export default function App() {
                   <input
                     type="checkbox"
                     checked={checkExpected}
-                    onChange={(e) => setCheckExpected(e.target.checked)}
+                    onChange={(e) => {
+                      setCheckExpected(e.target.checked);
+                      setCaseNumber(undefined);
+                    }}
                   />{" "}
                   Compare
                 </span>
@@ -228,7 +289,10 @@ export default function App() {
               <textarea
                 spellCheck="false"
                 value={expected}
-                onChange={(e) => setExpected(e.target.value)}
+                onChange={(e) => {
+                  setExpected(e.target.value);
+                  setCaseNumber(undefined);
+                }}
               />
             </label>
           </div>
@@ -242,13 +306,14 @@ export default function App() {
       )}
       {execution.result?.input !== undefined && (
         <div className="failure-actions">
-          <button onClick={() => setShowCatalog(true)}>Account &amp; Problems</button>
           <button onClick={saveFailure}>
             Save counterexample as test case
           </button>
           <button
             disabled={execution.busy}
             onClick={() => {
+              setSolutionId(undefined);
+              setCaseNumber(undefined);
               setSingle(scripts.optimal);
               setStdin(execution.result.input);
               setExpected(execution.result.expected || "");
@@ -276,7 +341,45 @@ export default function App() {
           busy={execution.busy}
         />
       )}
-        {showCatalog && <CatalogPanel onClose={() => setShowCatalog(false)} />}
+      {problemRecords && (
+        <ProblemRecords
+          problemId={problemId}
+          current={{ single, stdin, expected }}
+          onClose={() => setProblemRecords(false)}
+          onSolution={(row) => {
+            setSingle({ language: row.language, code: row.code });
+            setSolutionId(row.id);
+            setMode("single");
+            execution.setResult(null);
+            setProblemRecords(false);
+          }}
+          onTest={(row) => {
+            setStdin(row.input);
+            setExpected("");
+            setCheckExpected(false);
+            setCaseNumber(row.caseNumber);
+            setMode("single");
+            execution.setResult(null);
+            setProblemRecords(false);
+          }}
+          onSubmission={(row) => {
+            setMode("single");
+            setSingle({
+              language: row.request.language,
+              code: row.request.code,
+            });
+            setStdin(row.request.stdin);
+            setTimeLimit(row.request.timeLimit);
+            setSolutionId(undefined);
+            setCaseNumber(undefined);
+            setExpected("");
+            setCheckExpected(false);
+            execution.setResult(row.result);
+            setProblemRecords(false);
+          }}
+        />
+      )}
+      {showCatalog && <CatalogPanel onClose={() => setShowCatalog(false)} />}
     </main>
   );
 }

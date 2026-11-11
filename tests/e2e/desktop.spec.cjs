@@ -2,6 +2,8 @@ const { test, expect, _electron } = require("@playwright/test");
 const fs = require("node:fs/promises");
 const os = require("node:os");
 const path = require("node:path");
+const { runCode } = require("../../electron/execution/runner");
+const { normalize } = require("../../electron/execution/stress");
 let app, page, data;
 async function launch() {
   app = await _electron.launch({
@@ -19,6 +21,29 @@ async function launch() {
     page.getByRole("heading", { name: "CP Stress Studio" }),
   ).toBeVisible();
 }
+async function configureSubmissionApi(handler) {
+  await page.evaluate(() => localStorage.setItem("cp_token", "desktop-test"));
+  await page.getByLabel("Problem ID").fill("1");
+  await page.route("**/api/execution/problems/1/submissions", async (route) => {
+    const headers = {
+      "access-control-allow-origin": "*",
+      "access-control-allow-headers": "authorization, content-type",
+      "access-control-allow-methods": "POST, OPTIONS",
+    };
+    if (route.request().method() === "OPTIONS") {
+      await route.fulfill({ status: 204, headers });
+      return;
+    }
+    const result = await handler(route.request().postDataJSON());
+    await route
+      .fulfill({
+        headers,
+        contentType: "text/event-stream",
+        body: `event: result\ndata: ${JSON.stringify(result)}\n\n`,
+      })
+      .catch(() => {});
+  });
+}
 test.beforeEach(async () => {
   data = await fs.mkdtemp(path.join(os.tmpdir(), "studio-e2e-"));
   await launch();
@@ -28,6 +53,16 @@ test.afterEach(async () => {
   await fs.rm(data, { recursive: true, force: true });
 });
 test("built desktop loads editor, executes C++ and compares output", async () => {
+  await configureSubmissionApi(async (request) => {
+    const result = await runCode(request);
+    if (
+      result.status === "AC" &&
+      request.checkExpected &&
+      normalize(result.stdout) !== normalize(request.expected)
+    )
+      result.status = "WA";
+    return result;
+  });
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await expect(page.locator(".monaco-editor")).toBeVisible();
@@ -88,6 +123,11 @@ test("stress mismatch saves input, loads history and persists workspace across r
   await page.screenshot({ path: "test-results/stress-counterexample.png" });
 });
 test("stop cancels a live execution", async () => {
+  let finish;
+  const response = new Promise((resolve) => {
+    finish = resolve;
+  });
+  await configureSubmissionApi(() => response);
   await page.getByLabel("Solution language").selectOption("python");
   const editor = page.getByRole("textbox", {
     name: "Solution source code",
@@ -101,5 +141,6 @@ test("stop cancels a live execution", async () => {
   await page.getByLabel("Time limit in milliseconds").fill("30000");
   await page.getByRole("button", { name: /^Run/ }).click();
   await page.getByRole("button", { name: "Stop", exact: true }).click();
+  finish({ status: "AC" });
   await expect(page.locator(".result-pane .verdict")).toHaveText("CANCELLED");
 });
