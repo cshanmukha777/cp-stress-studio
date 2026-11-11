@@ -16,7 +16,7 @@ export default defineConfig({
             attrs: {
               "http-equiv": "Content-Security-Policy",
               content:
-                "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data:; worker-src 'self' blob:; connect-src 'self'",
+                "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data:; worker-src 'self' blob:; connect-src 'self' http://localhost:4000 http://127.0.0.1:4000",
             },
             injectTo: "head",
           },
