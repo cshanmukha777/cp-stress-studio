@@ -41,5 +41,52 @@ model Problem {
   createdBy   User     @relation(fields: [createdById], references: [id])
   createdAt   DateTime @default(now()) @map("created_at")
 
+  solutions   Solution[]
+  testCases   TestCase[]
+  submissions Submission[]
+
   @@map("problems")
+}
+
+model Solution {
+  id          Int          @id @default(autoincrement())
+  problemId   Int          @map("problem_id")
+  problem     Problem      @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  name        String
+  language    String
+  code        String
+  submissions Submission[]
+
+  @@unique([problemId, id])
+  @@map("solutions")
+}
+
+model TestCase {
+  problemId  Int     @map("problem_id")
+  caseNumber Int     @map("case_number")
+  problem    Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  name       String
+  input      String
+  expected   String
+
+  @@id([problemId, caseNumber])
+  @@map("test_cases")
+}
+
+model Submission {
+  id         Int       @id @default(autoincrement())
+  problemId  Int       @map("problem_id")
+  problem    Problem   @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  solutionId Int?      @map("solution_id")
+  solution   Solution? @relation(fields: [problemId, solutionId], references: [problemId, id], onDelete: NoAction)
+  verdict    String
+  runtimeMs  Float?    @map("runtime_ms")
+  memoryKiB  Int?      @map("memory_kib")
+  request    Json
+  result     Json
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@index([problemId, createdAt])
+  @@index([problemId, solutionId])
+  @@map("submissions")
 }
