@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import AuthForm from "./AuthForm";
+import ProblemsPage from "./ProblemsPage";
 import { api, getToken, setToken } from "./api";
 import "./catalog.css";
 
@@ -42,9 +43,7 @@ export default function CatalogPanel({ onClose }) {
         ) : !user ? (
           <AuthForm onAuthed={setUser} />
         ) : (
-          <p className="cat-muted">
-            Signed in as {user.email}. Profile and Problems pages come next.
-          </p>
+          <ProblemsPage />
         )}
       </main>
     </div>
