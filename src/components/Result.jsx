@@ -1,4 +1,4 @@
-export default function Result({ result, logs = "", busy }) {
+export default function Result({ result, logs = "", busy, phase, metrics }) {
   return (
     <section className="result-pane">
       <header className="pane-header">
@@ -17,7 +17,21 @@ export default function Result({ result, logs = "", busy }) {
               </span>
             </>
           )}
-          {busy && <span>Running…</span>}
+          {busy && (
+            <span role="status">
+              {phase === "building"
+                ? "Building…"
+                : phase === "started"
+                  ? "Starting…"
+                  : "Running…"}
+            </span>
+          )}
+          {busy && metrics && (
+            <span>
+              {metrics.time.toFixed(0)} ms ·{" "}
+              {(metrics.memory / 1024).toFixed(1)} MiB peak RSS
+            </span>
+          )}
         </div>
       </header>
       <pre aria-label="Execution output" aria-live="polite">

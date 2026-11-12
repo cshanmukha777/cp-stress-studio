@@ -40,15 +40,21 @@ async function prepare(script, options = {}) {
         script.language === "cpp"
           ? ["-O3", "-std=c++17", file, "-o", "program"]
           : ["-encoding", "UTF-8", file];
+      options.onPhase?.("building");
       compilation = await supervise(command, args, {
         cwd,
         timeout: 30000,
         signal: options.signal,
+        memoryLimitKiB: options.memoryLimitKiB,
+        onMetrics:
+          options.onMetrics &&
+          ((sample) => options.onMetrics("building", sample)),
       });
       if (compilation.status !== "AC") {
         if (compilation.status === "TLE")
           compilation.stderr += "\nCompilation timed out after 30000 ms";
-        if (compilation.status !== "CANCELLED") compilation.status = "CE";
+        if (!["CANCELLED", "MLE"].includes(compilation.status))
+          compilation.status = "CE";
         await dispose();
         return { error: compilation, dispose };
       }
@@ -74,6 +80,10 @@ async function prepare(script, options = {}) {
           timeout: validateLimit(runOptions.timeLimit),
           signal: runOptions.signal,
           onOutput: runOptions.onOutput,
+          memoryLimitKiB: runOptions.memoryLimitKiB,
+          onMetrics:
+            runOptions.onMetrics &&
+            ((sample) => runOptions.onMetrics("running", sample)),
           env: { ...process.env, CP_STRESS_SEED: String(runOptions.seed ?? 1) },
         });
       },
@@ -89,6 +99,7 @@ async function runCode(request, options = {}) {
   validateInput(request.stdin);
   const program = await prepare(request, options);
   try {
+    if (!program.error) options.onPhase?.("running");
     return (
       program.error ||
       (await program.run(request.stdin, {

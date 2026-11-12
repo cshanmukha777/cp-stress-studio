@@ -6,18 +6,19 @@ export function useExecution() {
     [logs, setLogs] = useState(""),
     [progress, setProgress] = useState(null),
     [error, setError] = useState("");
+  const [phase, setPhase] = useState(null);
+  const [metrics, setMetrics] = useState(null);
   const active = useRef(null);
   const controller = useRef(null);
   useEffect(() => {
     const api = window.electronAPI;
-    if (!api) return;
-    const offProgress = api.onProgress((data) => {
+    const offProgress = api?.onProgress((data) => {
       if (data.runId === active.current) setProgress(data);
     });
     return () => {
       controller.current?.abort();
-      offProgress();
-      if (active.current && !controller.current)
+      offProgress?.();
+      if (api && active.current && !controller.current)
         api.cancel(active.current).catch(() => {});
     };
   }, []);
@@ -33,6 +34,8 @@ export function useExecution() {
     setResult(null);
     setLogs("");
     setProgress(null);
+    setPhase(null);
+    setMetrics(null);
     setError("");
     try {
       if (mode === "single") {
@@ -41,6 +44,11 @@ export function useExecution() {
           request,
           controller.current.signal,
           (event, payload) => {
+            if (event === "status") {
+              setPhase(payload.status);
+              setMetrics(null);
+            }
+            if (event === "metrics") setMetrics(payload);
             if (event === "output")
               setLogs((old) => (old + payload.text).slice(-1024 * 1024));
           },
@@ -69,6 +77,8 @@ export function useExecution() {
   function loadResult(value) {
     setLogs("");
     setProgress(null);
+    setPhase(null);
+    setMetrics(null);
     setError("");
     setResult(value);
   }
@@ -77,6 +87,8 @@ export function useExecution() {
     result,
     logs,
     progress,
+    phase,
+    metrics,
     error,
     run,
     cancel,
