@@ -21,7 +21,7 @@ async function launch() {
     page.getByRole("heading", { name: "CP Stress Studio" }),
   ).toBeVisible();
 }
-async function configureSubmissionApi(handler) {
+async function configureSubmissionApi(handler, status = 200) {
   await page.evaluate(() => localStorage.setItem("cp_token", "desktop-test"));
   await page.getByLabel("Problem ID").fill("1");
   await page.route("**/api/execution/problems/1/submissions", async (route) => {
@@ -38,8 +38,12 @@ async function configureSubmissionApi(handler) {
     await route
       .fulfill({
         headers,
-        contentType: "text/event-stream",
-        body: `event: result\ndata: ${JSON.stringify(result)}\n\n`,
+        status,
+        contentType: status === 200 ? "text/event-stream" : "application/json",
+        body:
+          status === 200
+            ? `event: result\ndata: ${JSON.stringify(result)}\n\n`
+            : JSON.stringify(result),
       })
       .catch(() => {});
   });
@@ -143,4 +147,34 @@ test("stop cancels a live execution", async () => {
   await page.getByRole("button", { name: "Stop", exact: true }).click();
   finish({ status: "AC" });
   await expect(page.locator(".result-pane .verdict")).toHaveText("CANCELLED");
+});
+
+test("expired submission session is cleared and explained in the console", async () => {
+  await configureSubmissionApi(
+    () => ({ error: "Invalid or expired token" }),
+    401,
+  );
+  await page.getByRole("button", { name: /^Run/ }).click();
+  await expect(page.locator(".result-pane").getByRole("alert")).toContainText(
+    "Your session expired",
+  );
+  await expect(page.getByRole("button", { name: /^Run/ })).toBeEnabled();
+  expect(
+    await page.evaluate(() => localStorage.getItem("cp_token")),
+  ).toBeNull();
+});
+
+test("a submission keeps its verdict when database contention prevents saving", async () => {
+  await configureSubmissionApi(() => ({
+    status: "AC",
+    stdout: "5",
+    persistenceError: "Database is busy. This result was not saved.",
+  }));
+  await page.getByRole("button", { name: /^Run/ }).click();
+  await expect(page.locator(".result-pane .verdict")).toHaveText("AC");
+  await expect(page.locator(".result-pane").getByRole("alert")).toContainText(
+    "This result was not saved",
+  );
+  await expect(page.getByLabel("Execution output")).toHaveText("5");
+  await expect(page.getByRole("button", { name: /^Run/ })).toBeEnabled();
 });

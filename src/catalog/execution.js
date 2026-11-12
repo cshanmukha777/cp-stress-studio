@@ -1,4 +1,4 @@
-import { BASE, getToken, request } from "./api";
+import { BASE, getToken, request, setToken } from "./api";
 
 export function executionPath(problemId) {
   if (!/^[1-9]\d*$/.test(String(problemId))) {
@@ -20,15 +20,31 @@ export async function streamSubmission(
   const token = getToken();
   if (!token)
     throw new Error("Sign in through Account & Problems to run a submission");
-  const response = await fetch(`${BASE}/api${path}/submissions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(body),
-    signal,
-  });
+  let response;
+  try {
+    response = await fetch(`${BASE}/api${path}/submissions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(body),
+      signal,
+    });
+  } catch (error) {
+    if (signal.aborted) throw error;
+    throw new Error(
+      "Execution API is unreachable. Start it with npm run viva:member2.",
+      { cause: error },
+    );
+  }
+  if (response.status === 401) {
+    if (getToken() === token) setToken(null);
+    await response.body?.cancel().catch(() => {});
+    throw new Error(
+      "Your session expired. Sign in again through Account & Problems, then retry.",
+    );
+  }
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
     throw new Error(
@@ -39,7 +55,7 @@ export async function streamSubmission(
     !response.body ||
     !response.headers.get("content-type")?.startsWith("text/event-stream")
   ) {
-    await response.body?.cancel();
+    await response.body?.cancel().catch(() => {});
     throw new Error("Execution response is not an event stream");
   }
   const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
@@ -67,6 +83,17 @@ export async function streamSubmission(
         boundary = pending.indexOf("\n\n");
       }
     }
+  } catch (error) {
+    if (
+      signal.aborted ||
+      (error instanceof Error &&
+        !(error instanceof TypeError || error instanceof SyntaxError))
+    )
+      throw error;
+    throw new Error(
+      "The execution stream was interrupted. Check submission history before retrying.",
+      { cause: error },
+    );
   } finally {
     await reader.cancel().catch(() => {});
   }

@@ -238,7 +238,7 @@ export default function App() {
           desktop app
         </p>
       )}
-      {execution.error && (
+      {mode !== "single" && execution.error && (
         <p className="error notice" role="alert">
           {execution.error}
         </p>
@@ -326,7 +326,10 @@ export default function App() {
           </button>
         </div>
       )}
-      <Result {...execution} />
+      <Result
+        {...execution}
+        error={mode === "single" ? execution.error : undefined}
+      />
       <footer>
         AC without comparison means successful execution · Java entry class:
         Main · Escape stops execution

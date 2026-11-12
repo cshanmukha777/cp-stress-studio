@@ -1,8 +1,7 @@
 import { Router } from 'express';
 import runner from '../../../electron/execution/runner.js';
 import stress from '../../../electron/execution/stress.js';
-import { prisma } from '../db/prisma.js';
-import { getProblemExecution, solutions, testCases, submissions } from '../db/member2.js';
+import { getProblemExecution, solutions, testCases, submissions, withExecutionDb, isExecutionDbBusy } from '../db/member2.js';
 import { requireAuth } from '../middleware/auth.js';
 import { createExecutionEmitter } from '../services/executionEmitter.js';
 
@@ -19,10 +18,10 @@ router.use(requireAuth);
 router.use('/problems/:problemId', async (req, res, next) => {
   if (!positiveId(req.params.problemId)) return res.status(400).json({ error: 'Invalid problem ID' });
   req.problemId = Number(req.params.problemId);
-  const problem = await prisma.problem.findUnique({
+  const problem = await withExecutionDb((db) => db.problem.findUnique({
     where: { id: req.problemId },
     select: { createdById: true },
-  });
+  }));
   if (!problem) return notFound(res);
   if (req.user.role !== 'admin' && req.user.id !== problem.createdById) {
     return res.status(403).json({ error: 'Only the problem owner or an admin can access its execution records' });
@@ -111,8 +110,10 @@ router.post(`${problem}/submissions`, async (req, res) => {
       (caseNumber !== undefined && !positiveId(caseNumber))) {
     return res.status(400).json({ error: 'Invalid solution ID or case number' });
   }
-  const solution = solutionId === undefined ? { language, code } : await solutions.get(req.problemId, Number(solutionId));
-  const testCase = caseNumber === undefined ? null : await testCases.get(req.problemId, Number(caseNumber));
+  const { solution, testCase } = await withExecutionDb(async (db) => ({
+    solution: solutionId === undefined ? { language, code } : await solutions.get(req.problemId, Number(solutionId), db),
+    testCase: caseNumber === undefined ? null : await testCases.get(req.problemId, Number(caseNumber), db),
+  }));
   if (!solution || (caseNumber !== undefined && !testCase)) return notFound(res);
   const run = { language: solution.language, code: solution.code, stdin: testCase?.input ?? stdin, timeLimit };
   const compare = testCase ? true : checkExpected === true;
@@ -131,14 +132,15 @@ router.post(`${problem}/submissions`, async (req, res) => {
   if (active.size >= 2 || active.has(req.user.id)) {
     return res.status(429).json({ error: 'Execution capacity reached. Try again after the active run ends.' });
   }
+  if (res.destroyed) return;
   const controller = new AbortController();
   const cancel = () => controller.abort();
   active.add(req.user.id);
   res.once('close', cancel);
+  const events = createExecutionEmitter(res);
   try {
     res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no' });
     res.flushHeaders();
-    const events = createExecutionEmitter(res);
     events.emit('update', 'status', { status: 'started', memoryLimitKiB });
     let phase = 'started';
     const result = await runner.runCode(run, {
@@ -154,18 +156,25 @@ router.post(`${problem}/submissions`, async (req, res) => {
     if (result.status === 'AC' && compare && stress.normalize(result.stdout) !== stress.normalize(target)) {
       result.status = 'WA';
     }
-    const row = await submissions.create({
-      problemId: req.problemId,
-      solutionId: solutionId === undefined ? null : Number(solutionId),
-      verdict: result.status,
-      runtimeMs: phase !== 'running' || result.status === 'CANCELLED' ? null : result.time ?? null,
-      memoryKiB: phase !== 'running' || result.status === 'CANCELLED' ? null : result.memory ?? null,
-      request: { ...run, ...(timeLimit === undefined ? { timeLimit: 2000 } : {}), caseNumber: caseNumber ?? null },
-      result,
-    });
-    events.emit('update', 'result', { ...result, submissionId: row.id });
+    try {
+      const row = await submissions.create({
+        problemId: req.problemId,
+        solutionId: solutionId === undefined ? null : Number(solutionId),
+        verdict: result.status,
+        runtimeMs: phase !== 'running' || result.status === 'CANCELLED' ? null : result.time ?? null,
+        memoryKiB: phase !== 'running' || result.status === 'CANCELLED' ? null : result.memory ?? null,
+        request: { ...run, ...(timeLimit === undefined ? { timeLimit: 2000 } : {}), caseNumber: caseNumber ?? null },
+        result,
+      });
+      events.emit('update', 'result', { ...result, submissionId: row.id });
+    } catch (error) {
+      const persistenceError = isExecutionDbBusy(error)
+        ? 'Database is busy. This result was not saved. Wait for the other operation to finish, then run again.'
+        : 'The run finished, but the submission could not be saved.';
+      events.emit('update', 'result', { ...result, persistenceError });
+    }
   } catch {
-    if (!res.destroyed) res.write('event: error\ndata: {"error":"Execution or submission storage failed"}\n\n');
+    events.emit('update', 'error', { error: 'Execution could not finish. Try running again.' });
   } finally {
     active.delete(req.user.id);
     res.removeListener('close', cancel);
@@ -175,6 +184,9 @@ router.post(`${problem}/submissions`, async (req, res) => {
 
 router.use((error, _req, res, next) => {
   if (res.headersSent) return next(error);
+  if (isExecutionDbBusy(error)) {
+    return res.status(503).json({ error: 'Database is busy. Wait for the other operation to finish, then try again.' });
+  }
   if (error.code === 'P2025') return notFound(res);
   if (['P2002', 'P2003'].includes(error.code)) return res.status(409).json({ error: 'Record conflicts with existing data' });
   if (error.status === 400 || error.status === 413) return res.status(error.status).json({ error: error.message });
