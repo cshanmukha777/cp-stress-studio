@@ -20,7 +20,16 @@ function killTree(child) {
 function supervise(
   command,
   args,
-  { cwd, stdin = "", timeout = 2000, signal, onOutput, env = process.env } = {},
+  {
+    cwd,
+    stdin = "",
+    timeout = 2000,
+    signal,
+    onOutput,
+    env = process.env,
+    memoryLimitKiB,
+    onMetrics,
+  } = {},
 ) {
   return new Promise((resolve) => {
     const start = process.hrtime.bigint();
@@ -43,6 +52,23 @@ function supervise(
     };
     const abort = () => stop("CANCELLED");
     const timer = setTimeout(() => stop("TLE"), timeout);
+    let lastMetrics = -Infinity;
+    const sample = (rss) => {
+      if (status || !Number.isFinite(rss) || rss <= 0) return;
+      memory = Math.max(memory || 0, rss);
+      if (memoryLimitKiB && rss > memoryLimitKiB) {
+        stderr +=
+          "\nSampled RSS exceeded the memory limit (" +
+          memoryLimitKiB +
+          " KiB)";
+        stop("MLE");
+      }
+      const time = Number(process.hrtime.bigint() - start) / 1e6;
+      if (onMetrics && (time - lastMetrics >= 100 || status === "MLE")) {
+        lastMetrics = time;
+        onMetrics({ time, memory });
+      }
+    };
     const sampler = setInterval(
       () => {
         if (process.platform === "linux" && child.pid) {
@@ -50,7 +76,7 @@ function supervise(
             const rss = /VmRSS:\s+(\d+)/.exec(
               fs.readFileSync(`/proc/${child.pid}/status`, "utf8"),
             );
-            if (rss) memory = Math.max(memory || 0, Number(rss[1]));
+            if (rss) sample(Number(rss[1]));
           } catch {
             /* process ended between samples */
           }
@@ -66,7 +92,7 @@ function supervise(
           memoryProbe.on("error", () => {});
           memoryProbe.on("close", () => {
             const rss = Number(output.trim());
-            if (rss > 0) memory = Math.max(memory || 0, rss);
+            sample(rss);
             memoryProbe = null;
           });
         }
@@ -93,7 +119,15 @@ function supervise(
       status ||= "RE";
       stderr += `${command}: ${error.message}`;
     });
-    child.on("close", (code) => {
+    child.on("close", (code, exitSignal) => {
+      if (memoryLimitKiB && !status && exitSignal) {
+        const detail =
+          exitSignal === "SIGSEGV"
+            ? "Segmentation fault"
+            : "Process terminated";
+        stderr += "\n" + detail + " (" + exitSignal + ")";
+      }
+      status ||= code === 0 ? "AC" : "RE";
       clearTimeout(timer);
       clearInterval(sampler);
       memoryProbe?.kill("SIGKILL");
@@ -101,7 +135,7 @@ function supervise(
       killTree(child); // Also reap descendants left behind by an exited parent.
       if (bytes > 1024 * 1024) stderr += "\nOutput limit exceeded (1 MiB)";
       resolve({
-        status: status || (code === 0 ? "AC" : "RE"),
+        status,
         stdout,
         stderr,
         time: Number(process.hrtime.bigint() - start) / 1e6,

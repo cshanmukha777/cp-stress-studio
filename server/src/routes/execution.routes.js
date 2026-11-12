@@ -8,6 +8,7 @@ import { createExecutionEmitter } from '../services/executionEmitter.js';
 
 const router = Router();
 const active = new Set();
+const memoryLimitKiB = 512 * 1024;
 const loopback = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
 const positiveId = (value) => /^[1-9]\d*$/.test(String(value)) && Number(value) <= 2147483647;
 const notFound = (res) => res.status(404).json({ error: 'Record not found' });
@@ -138,9 +139,16 @@ router.post(`${problem}/submissions`, async (req, res) => {
     res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no' });
     res.flushHeaders();
     const events = createExecutionEmitter(res);
-    events.emit('update', 'status', { status: 'started' });
+    events.emit('update', 'status', { status: 'started', memoryLimitKiB });
+    let phase = 'started';
     const result = await runner.runCode(run, {
       signal: controller.signal,
+      memoryLimitKiB,
+      onPhase: (status) => {
+        phase = status;
+        events.emit('update', 'status', { status });
+      },
+      onMetrics: (phase, sample) => events.emit('update', 'metrics', { phase, ...sample }),
       onOutput: (output) => events.emit('update', 'output', output),
     });
     if (result.status === 'AC' && compare && stress.normalize(result.stdout) !== stress.normalize(target)) {
@@ -150,8 +158,8 @@ router.post(`${problem}/submissions`, async (req, res) => {
       problemId: req.problemId,
       solutionId: solutionId === undefined ? null : Number(solutionId),
       verdict: result.status,
-      runtimeMs: ['CE', 'CANCELLED'].includes(result.status) ? null : result.time ?? null,
-      memoryKiB: ['CE', 'CANCELLED'].includes(result.status) ? null : result.memory ?? null,
+      runtimeMs: phase !== 'running' || result.status === 'CANCELLED' ? null : result.time ?? null,
+      memoryKiB: phase !== 'running' || result.status === 'CANCELLED' ? null : result.memory ?? null,
       request: { ...run, ...(timeLimit === undefined ? { timeLimit: 2000 } : {}), caseNumber: caseNumber ?? null },
       result,
     });
