@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test": "node --test --test-concurrency=1 tests/*.test.cjs",
     "start": "electron .",
-    "test:desktop": "npm run build && playwright test"
+    "test:desktop": "npm run build && playwright test",
+    "viva:member2": "node scripts/viva_demo.mjs"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
