@@ -4,9 +4,11 @@ import { prisma } from './db/prisma.js';
 import authRouter from './routes/auth.routes.js';
 import problemRouter from './routes/problem.routes.js';
 import profileRouter from './routes/profile.routes.js';
+import executionRouter from './routes/execution.routes.js';
 
 const app = express();
 app.use(cors());
+app.use('/api/execution', express.json({ limit: '16mb' }), executionRouter);
 app.use(express.json());
 
 app.get('/api/health', async (_req, res) => {
