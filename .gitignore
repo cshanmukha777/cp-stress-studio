@@ -33,3 +33,4 @@ playwright-report/
 *.sqlite-shm
 *.sqlite-wal
 server/.env
+templates/
