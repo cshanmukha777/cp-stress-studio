@@ -1,8 +1,10 @@
-const { app, BrowserWindow, ipcMain } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog } = require("electron");
+const fs = require("node:fs/promises");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const { createDatabase } = require("./database/db");
 const { registerIPC } = require("./ipc");
+const { formatFailingCase } = require("./execution/failingCaseExport");
 let db, disposeIPC;
 
 function createWindow() {
@@ -44,6 +46,20 @@ app.whenReady().then(() => {
     (event) =>
       event.senderFrame === event.sender.mainFrame &&
       event.senderFrame.url === trustedURL,
+    async (record) => {
+      const { contents, filename } = formatFailingCase(record);
+      const choice = await dialog.showSaveDialog({
+        title: "Export failing case",
+        defaultPath: path.join(app.getPath("downloads"), filename),
+        filters: [{ name: "Text file", extensions: ["txt"] }],
+      });
+      if (choice.canceled || !choice.filePath) return { saved: false, canceled: true };
+      const target = choice.filePath.toLowerCase().endsWith(".txt")
+        ? choice.filePath
+        : `${choice.filePath}.txt`;
+      await fs.writeFile(target, contents, { encoding: "utf8", flag: "wx" });
+      return { saved: true, path: target };
+    },
   );
   createWindow();
 

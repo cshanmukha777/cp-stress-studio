@@ -68,7 +68,9 @@ test("prepared program reusable", async () => {
 });
 
 const { spawnSync } = require("node:child_process");
-const hasJava = !spawnSync("javac", ["-version"]).error;
+const hasJava =
+  !spawnSync("javac", ["-version"]).error &&
+  spawnSync("java", ["-version"]).status === 0;
 test("Java compiles Main and consumes stdin", { skip: !hasJava }, async () => {
   const r = await runCode({
     language: "java",

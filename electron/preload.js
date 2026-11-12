@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   runCode: (request) => ipcRenderer.invoke("run-code", request),
   startStress: (request) => ipcRenderer.invoke("stress:start", request),
   cancel: (runId) => ipcRenderer.invoke("execution:cancel", runId),
+  exportFailingCase: (record) => ipcRenderer.invoke("failing-case:export", record),
   onOutput: (callback) => subscribe("execution:output", callback),
   onProgress: (callback) => subscribe("stress:progress", callback),
   db: {

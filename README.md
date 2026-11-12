@@ -36,9 +36,9 @@ Verdicts: `AC`, `WA`, `TLE`, `RE`, `CE`, and `CANCELLED`. Compiler diagnostics, 
 
 ## Stress test
 
-Edit the generator, brute-force reference, and optimal solution independently. Set 1–10,000 iterations and a 50–30,000 ms per-process execution limit. Compiled programs are prepared once per stress session. Each iteration runs the generator, then reference and target with the same generated input. Comparison ignores whitespace differences but preserves token content and order.
+Edit the generator, brute-force reference, and optimal solution independently. Set 1–10,000 iterations, an optional 32-bit random seed, and a 50–30,000 ms per-process execution limit. Compiled programs are prepared once per stress session. Each iteration runs the generator, then reference and target with the same generated input. Comparison ignores whitespace differences but preserves token content and order. By default the first failure stops the loop; turn off **Stop on first failure** to keep going and save every failing input.
 
-`CP_STRESS_SEED` contains the one-based iteration number. Generators must explicitly use it for reproducible randomness; the built-in example does. A mismatch or execution failure stops the loop and records its role, exact captured input, expected output and actual output where available. Failures in the generator or reference are labeled separately from target failures.
+The generator receives a per-iteration `CP_STRESS_SEED`; iteration one starts with the chosen seed and later iterations increment it modulo 2^32. With no seed entered, the app chooses one and stores it with history. Generators must explicitly use the variable for reproducible randomness. A mismatch or execution failure records its role, exact input, outputs, diagnostics, process status, and elapsed time. Failures in the generator or reference are labeled separately from target failures.
 
 Use **Save counterexample as test case** to keep a regression case, or **Open in single run** to debug it. Live progress counts only fully passed iterations.
 

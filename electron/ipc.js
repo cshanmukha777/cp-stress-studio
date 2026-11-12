@@ -1,6 +1,6 @@
 const { runCode, validateInput } = require("./execution/runner");
 const { stressTest, normalize } = require("./execution/stress");
-function registerIPC(ipcMain, db, isTrusted) {
+function registerIPC(ipcMain, db, isTrusted, exportFailingCase) {
   const active = new Map();
   const channels = [];
   function handle(channel, fn) {
@@ -62,18 +62,10 @@ function registerIPC(ipcMain, db, isTrusted) {
       }
       const data = { mode, request, result };
       try {
-        db.save("history", {
-          name: `${mode} · ${result.status}`,
-          workspace_id: request.workspaceId,
-          data,
-        });
-        if (
-          mode === "stress" &&
-          ["WA", "TLE", "RE"].includes(result.status) &&
-          result.input !== undefined
-        )
-          db.save("counterexamples", {
-            name: `${result.status} · iteration ${result.iteration}`,
+        if (mode === "stress") db.persistStressRun(request, result);
+        else
+          db.save("history", {
+            name: `${mode} · ${result.status}`,
             workspace_id: request.workspaceId,
             data,
           });
@@ -105,6 +97,11 @@ function registerIPC(ipcMain, db, isTrusted) {
     db.save(collection, record),
   );
   handle("db:delete", (_event, collection, id) => db.remove(collection, id));
+  handle("failing-case:export", (_event, record) => {
+    if (typeof exportFailingCase !== "function")
+      throw new Error("Failing-case export is unavailable");
+    return exportFailingCase(record);
+  });
   return async () => {
     const pending = Array.from(active.values(), (job) => job.finished);
     for (const job of active.values()) job.controller.abort();

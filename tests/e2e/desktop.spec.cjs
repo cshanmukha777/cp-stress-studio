@@ -2,6 +2,7 @@ const { test, expect, _electron } = require("@playwright/test");
 const fs = require("node:fs/promises");
 const os = require("node:os");
 const path = require("node:path");
+const { createDatabase } = require("../../electron/database/db");
 const { runCode } = require("../../electron/execution/runner");
 const { normalize } = require("../../electron/execution/stress");
 let app, page, data;
@@ -121,9 +122,21 @@ test("stress mismatch saves input, loads history and persists workspace across r
     "Regression problem",
   );
   await page.getByRole("button", { name: "History", exact: true }).click();
-  await expect(page.locator(".record-title")).toContainText("stress · WA");
-  await page.getByRole("button", { name: "Load", exact: true }).click();
+  await expect(page.locator(".record-title")).toContainText("Stress · WA");
+  await page.getByRole("button", { name: "Open run", exact: true }).click();
   await expect(page.locator(".counterexample .verdict")).toContainText("WA");
+  await page.getByRole("button", { name: "Saved records", exact: true }).click();
+  await page.getByRole("button", { name: "Counterexamples", exact: true }).click();
+  const exportPath = path.join(data, "failing-case.txt");
+  await app.evaluate(({ dialog }, filePath) => {
+    dialog.showSaveDialog = async () => ({ canceled: false, filePath });
+  }, exportPath);
+  await page.getByRole("button", { name: "Export .txt", exact: true }).click();
+  await expect(page.locator(".drawer p[role='status']")).toContainText("Exported failing case");
+  const persisted = createDatabase(path.join(data, "studio.sqlite"));
+  const exactInput = persisted.list("counterexamples")[0].data.generatedInput;
+  persisted.close();
+  expect(await fs.readFile(exportPath, "utf8")).toContain(`=== Generated input ===\n${exactInput}`);
   await page.screenshot({ path: "test-results/stress-counterexample.png" });
 });
 test("stop cancels a live execution", async () => {

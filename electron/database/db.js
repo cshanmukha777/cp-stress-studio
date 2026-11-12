@@ -29,6 +29,20 @@ function createDatabase(filename) {
   }
   function save(collection, record) {
     collectionCheck(collection);
+    if (collection === "counterexamples") {
+      const stressRunId = record?.data?.stressRunId;
+      const legacyRecord = record?.id ? get("counterexamples", record.id) : null;
+      if (
+        typeof stressRunId !== "string" && !legacyRecord ||
+        typeof stressRunId === "string" && !get("history", stressRunId)
+      )
+        throw new Error("A failing case must belong to an existing stress run");
+    }
+    if (collection === "counterexamples") {
+      const stressRunId = record?.data?.stressRunId;
+      if (typeof stressRunId !== "string" || !get("history", stressRunId))
+        throw new Error("A failing case must belong to an existing stress run");
+    }
     if (
       !record ||
       typeof record.name !== "string" ||
@@ -62,6 +76,62 @@ function createDatabase(filename) {
   return {
     get,
     save,
+    persistStressRun(request, result) {
+      const failures = Array.isArray(result.failures)
+        ? result.failures
+        : result.input !== undefined
+          ? [result]
+          : [];
+      const runData = {
+        mode: "stress",
+        problemId: request.problemId || null,
+        totalIterations: result.total ?? request.iterations,
+        passedIterations: result.passed ?? result.completed ?? 0,
+        failedIterations: result.failed ?? failures.length,
+        verdict: result.status,
+        comparisonVerdict: result.verdict || result.status,
+        status: result.status,
+        executionTime: result.executionTime ?? result.time ?? null,
+        averageRuntime: result.averageRuntime ?? null,
+        maxRuntime: result.maxRuntime ?? null,
+        randomSeed: result.randomSeed ?? request.randomSeed ?? null,
+        createdAt: new Date().toISOString(),
+        request,
+        result,
+      };
+      db.exec("BEGIN IMMEDIATE");
+      try {
+        const run = save("history", {
+          name: `Stress · ${runData.verdict}`,
+          workspace_id: request.workspaceId || null,
+          data: runData,
+        });
+        for (const failure of failures) {
+          save("counterexamples", {
+            name: `${failure.status || "FAILED"} · iteration ${failure.iteration ?? 0}`,
+            workspace_id: request.workspaceId || null,
+            data: {
+              stressRunId: run.id,
+              problemId: runData.problemId,
+              iterationNumber: failure.iteration ?? 0,
+              generatedInput: failure.input ?? "",
+              expectedOutput: failure.expected ?? "",
+              actualOutput: failure.actual ?? "",
+              failureReason: failure.failureReason || failure.comparison?.reason || failure.status,
+              verdict: failure.status || "FAILED",
+              createdAt: runData.createdAt,
+              failure,
+              request,
+            },
+          });
+        }
+        db.exec("COMMIT");
+        return run;
+      } catch (error) {
+        db.exec("ROLLBACK");
+        throw error;
+      }
+    },
     list(collection, workspaceId) {
       collectionCheck(collection);
       return (
@@ -86,6 +156,14 @@ function createDatabase(filename) {
         if (collection === "workspaces")
           db.prepare(
             "UPDATE records SET workspace_id=NULL WHERE workspace_id=?",
+          ).run(id);
+        if (collection === "history")
+          db.prepare(
+            "DELETE FROM records WHERE collection='counterexamples' AND json_extract(data, '$.stressRunId')=?",
+          ).run(id);
+        if (collection === "history")
+          db.prepare(
+            "DELETE FROM records WHERE collection='counterexamples' AND json_extract(data, '$.stressRunId')=?",
           ).run(id);
         const result = db
           .prepare("DELETE FROM records WHERE collection=? AND id=?")

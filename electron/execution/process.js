@@ -36,6 +36,8 @@ function supervise(
     let stdout = "",
       stderr = "",
       status = null,
+      exitCode = null,
+      exitSignal = null,
       memory = null,
       bytes = 0;
     let memoryProbe = null;
@@ -121,7 +123,9 @@ function supervise(
       status ||= "RE";
       stderr += `${command}: ${error.message}`;
     });
-    child.once("exit", (_code, exitSignal) => {
+    child.once("exit", (code, signalName) => {
+      exitCode = code;
+      exitSignal = signalName;
       exited = true;
       clearTimeout(timer);
       clearInterval(sampler);
@@ -147,6 +151,8 @@ function supervise(
       if (bytes > 1024 * 1024) stderr += "\nOutput limit exceeded (1 MiB)";
       resolve({
         status,
+        exitCode,
+        exitSignal,
         stdout,
         stderr,
         time: Number(process.hrtime.bigint() - start) / 1e6,

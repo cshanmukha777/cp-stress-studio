@@ -10,6 +10,7 @@ export default function RecordsDrawer({
   const [collection, setCollection] = useState("workspaces"),
     [rows, setRows] = useState([]),
     [error, setError] = useState(""),
+    [notice, setNotice] = useState(""),
     [name, setName] = useState("Untitled problem"),
     [selected, setSelected] = useState(null);
   async function refresh(kind = collection) {
@@ -69,6 +70,27 @@ export default function RecordsDrawer({
       setError(e.message);
     }
   }
+  async function exportFailure(row) {
+    try {
+      const failure = row.data.failure || row.data.result || {};
+      const request = row.data.request || {};
+      const result = await window.electronAPI.exportFailingCase({
+        ...row.data,
+        problemId: row.data.problemId ?? request.problemId ?? null,
+        iterationNumber: row.data.iterationNumber ?? failure.iteration ?? 0,
+        generatedInput: row.data.generatedInput ?? failure.input ?? "",
+        expectedOutput: row.data.expectedOutput ?? failure.expected ?? "",
+        actualOutput: row.data.actualOutput ?? failure.actual ?? "",
+        failureReason: row.data.failureReason ?? failure.failureReason ?? failure.comparison?.reason ?? "",
+        verdict: row.data.verdict ?? failure.status ?? "FAILED",
+      });
+      if (result.saved) setNotice(`Exported failing case to ${result.path}`);
+      else setNotice("Failing-case export canceled.");
+      setError("");
+    } catch (e) {
+      setError(e.message);
+    }
+  }
   return (
     <aside className="drawer" aria-label="Saved records">
       <header className="pane-header">
@@ -120,6 +142,7 @@ export default function RecordsDrawer({
           {error}
         </p>
       )}
+      {notice && <p role="status" className="notice">{notice}</p>}
       <div className="record-list">
         {rows.length === 0 && (
           <p className="empty">No {collection} saved yet</p>
@@ -136,13 +159,23 @@ export default function RecordsDrawer({
                 setName(row.name);
               }}
             >
-              <span>{row.name}</span>
-              <time>{new Date(row.updated_at).toLocaleString()}</time>
+              <span>
+                {row.name}
+                {collection === "history" && row.data.mode === "stress" && (
+                  <small className="record-summary">
+                    Problem {row.data.result.problemId ?? "—"} · {row.data.result.total ?? 0} iterations · {row.data.result.passed ?? 0} passed · {row.data.result.failed ?? 0} failed · {row.data.result.executionTime?.toFixed?.(1) ?? "—"} ms
+                  </small>
+                )}
+              </span>
+              <time>{new Date(row.created_at).toLocaleString()}</time>
             </button>
             <div className="record-actions">
               <button disabled={busy} onClick={() => onLoad(collection, row)}>
-                Load
+                {collection === "history" ? "Open run" : "Load"}
               </button>
+              {collection === "counterexamples" && (
+                <button onClick={() => exportFailure(row)}>Export .txt</button>
+              )}
               <button onClick={() => rename(row)}>Rename</button>
               <button onClick={() => remove(row)}>Delete</button>
             </div>

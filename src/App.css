@@ -160,6 +160,24 @@ footer {
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
 }
+.inline-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.count-passed { color: #9de0b0; }
+.count-failed { color: #ff9a9a; }
+.mismatch-summary {
+  margin: 8px 12px;
+  color: #ffd27d;
+  font-family: var(--mono);
+}
+.token-output { overflow-wrap: anywhere; white-space: pre-wrap; }
+.diff-token.changed { background: #74323b; color: #ffe3e6; }
+.diff-token.missing { display: block; color: #ffb3bb; font-style: italic; }
+.execution-diagnostics { padding: 8px 12px; }
+.execution-diagnostics summary { cursor: pointer; color: var(--muted); }
 progress {
   height: 8px;
   width: 160px;
@@ -283,6 +301,13 @@ progress {
 .record-title time {
   font: 11px var(--mono);
   color: var(--muted);
+}
+.record-summary {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
 }
 .record-actions {
   display: flex;

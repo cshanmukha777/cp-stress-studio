@@ -18,7 +18,9 @@ export default function App() {
     [checkExpected, setCheckExpected] = useState(false),
     [timeLimit, setTimeLimit] = useState(2000);
   const [mode, setMode] = useState("single"),
-    [iterations, setIterations] = useState(100);
+    [iterations, setIterations] = useState(100),
+    [randomSeed, setRandomSeed] = useState(""),
+    [stopOnFailure, setStopOnFailure] = useState(true);
   const [scripts, setScripts] = useState({
     generator: {
       language: "python",
@@ -46,6 +48,8 @@ export default function App() {
     timeLimit,
     mode,
     iterations,
+    randomSeed,
+    stopOnFailure,
     scripts,
   });
   async function saveRecord(collection, name, id) {
@@ -70,6 +74,15 @@ export default function App() {
       setCheckExpected(Boolean(row.data.checkExpected));
       setMode("single");
       execution.setResult(null);
+    } else if (collection === "counterexamples") {
+      const request = row.data.request || {};
+      setStdin(row.data.generatedInput ?? row.data.failure?.input ?? "");
+      setExpected(row.data.expectedOutput ?? row.data.failure?.expected ?? "");
+      setCheckExpected(true);
+      setTimeLimit(request.timeLimit ?? timeLimit);
+      if (request.optimal) setSingle(request.optimal);
+      setMode("single");
+      execution.setResult(null);
     } else if (collection === "workspaces") {
       const d = row.data;
       setSingle(d.single);
@@ -79,6 +92,8 @@ export default function App() {
       setTimeLimit(d.timeLimit);
       setMode(d.mode);
       setIterations(d.iterations);
+      setRandomSeed(d.randomSeed ?? "");
+      setStopOnFailure(d.stopOnFailure ?? true);
       setScripts(d.scripts);
       setWorkspaceId(row.id);
       execution.setResult(null);
@@ -99,6 +114,8 @@ export default function App() {
           optimal: r.optimal,
         });
         setIterations(r.iterations);
+        setRandomSeed(r.randomSeed ?? "");
+        setStopOnFailure(r.stopOnFailure ?? true);
       }
       execution.setResult(result);
     }
@@ -134,7 +151,15 @@ export default function App() {
             solutionId,
             caseNumber,
           }
-        : { ...scripts, iterations, timeLimit, workspaceId },
+        : {
+            ...scripts,
+            iterations,
+            randomSeed: randomSeed === "" ? undefined : Number(randomSeed),
+            stopOnFailure,
+            timeLimit,
+            workspaceId,
+            problemId: problemId ? Number(problemId) : null,
+          },
     );
   useEffect(() => {
     const key = (e) => {
@@ -184,8 +209,7 @@ export default function App() {
           </button>
         ))}
         <div className="spacer" />
-        {mode === "single" && (
-          <label>
+        <label>
             Problem ID
             <input
               type="number"
@@ -199,19 +223,25 @@ export default function App() {
                 setProblemRecords(false);
               }}
             />
-          </label>
-        )}
+        </label>
         {mode === "stress" && (
-          <label>
-            Iterations{" "}
-            <input
-              type="number"
-              min="1"
-              max="10000"
-              value={iterations}
-              onChange={(e) => setIterations(Number(e.target.value))}
-            />
-          </label>
+          <>
+            <label>
+              Iterations{" "}
+              <input type="number" min="1" max="10000" value={iterations}
+                onChange={(e) => setIterations(Number(e.target.value))} />
+            </label>
+            <label>
+              Random seed{" "}
+              <input type="number" min="0" max="4294967295" placeholder="random"
+                value={randomSeed} onChange={(e) => setRandomSeed(e.target.value)} />
+            </label>
+            <label className="inline-option">
+              <input type="checkbox" checked={stopOnFailure}
+                onChange={(e) => setStopOnFailure(e.target.checked)} />
+              Stop on first failure
+            </label>
+          </>
         )}
         <label>
           Time limit{" "}
@@ -301,6 +331,7 @@ export default function App() {
         <StressWorkbench
           scripts={scripts}
           onChange={setScripts}
+          stopOnFailure={stopOnFailure}
           {...execution}
         />
       )}
