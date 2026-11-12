@@ -35,10 +35,15 @@ export async function streamSubmission(
       data.error || `Execution request failed (${response.status})`,
     );
   }
-  if (!response.body) throw new Error("Execution response has no stream");
+  if (
+    !response.body ||
+    !response.headers.get("content-type")?.startsWith("text/event-stream")
+  ) {
+    await response.body?.cancel();
+    throw new Error("Execution response is not an event stream");
+  }
   const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
   let pending = "";
-  let result;
   try {
     while (true) {
       const { done, value } = await reader.read();
@@ -56,8 +61,8 @@ export async function streamSubmission(
         if (event && data) {
           const payload = JSON.parse(data);
           if (event === "error") throw new Error(payload.error);
-          if (event === "result") result = payload;
           onEvent(event, payload);
+          if (event === "result") return payload;
         }
         boundary = pending.indexOf("\n\n");
       }
@@ -65,7 +70,5 @@ export async function streamSubmission(
   } finally {
     await reader.cancel().catch(() => {});
   }
-  if (!result)
-    throw new Error("Execution stream ended before a result arrived");
-  return result;
+  throw new Error("Execution stream ended before a result arrived");
 }
