@@ -8,6 +8,16 @@ import { createExecutionEmitter } from '../services/executionEmitter.js';
 const router = Router();
 const active = new Set();
 const memoryLimitKiB = 512 * 1024;
+const toolchainEnvKeys = new Set([
+  'PATH', 'PATHEXT', 'SYSTEMROOT', 'WINDIR', 'COMSPEC',
+  'TMPDIR', 'TMP', 'TEMP', 'LANG', 'LC_ALL', 'SDKROOT', 'DEVELOPER_DIR',
+]);
+
+function toolchainEnvironment() {
+  return Object.fromEntries(Object.entries(process.env).filter(
+    ([key]) => toolchainEnvKeys.has(key.toUpperCase()),
+  ));
+}
 const loopback = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
 const positiveId = (value) => /^[1-9]\d*$/.test(String(value)) && Number(value) <= 2147483647;
 const notFound = (res) => res.status(404).json({ error: 'Record not found' });
@@ -146,6 +156,7 @@ router.post(`${problem}/submissions`, async (req, res) => {
     const result = await runner.runCode(run, {
       signal: controller.signal,
       memoryLimitKiB,
+      env: toolchainEnvironment(),
       onPhase: (status) => {
         phase = status;
         events.emit('update', 'status', { status });
