@@ -11,7 +11,12 @@ export default function ProblemsPage() {
   const [sortBy, setSortBy] = useState("createdAt");
   const [order, setOrder] = useState("desc");
   const [page, setPage] = useState(1);
+  const [refresh, setRefresh] = useState(0);
   const [result, setResult] = useState({ key: "", data: null, error: "" });
+  const [templates, setTemplates] = useState([]);
+  const [picked, setPicked] = useState("");
+  const [message, setMessage] = useState("");
+  const [actionError, setActionError] = useState("");
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -21,7 +26,7 @@ export default function ProblemsPage() {
     return () => clearTimeout(t);
   }, [q]);
 
-  const key = JSON.stringify([search, minD, maxD, sortBy, order, page]);
+  const key = JSON.stringify([search, minD, maxD, sortBy, order, page, refresh]);
 
   useEffect(() => {
     let cancelled = false;
@@ -42,6 +47,21 @@ export default function ProblemsPage() {
     };
   }, [key, search, minD, maxD, sortBy, order, page]);
 
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .templates()
+      .then((d) => {
+        if (!cancelled) setTemplates(d.templates);
+      })
+      .catch(() => {
+        if (!cancelled) setTemplates([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [refresh]);
+
   const loading = result.key !== key;
   const { data, error } = result;
 
@@ -49,6 +69,32 @@ export default function ProblemsPage() {
     setter(e.target.value);
     setPage(1);
   };
+
+  async function exportOne(slug) {
+    setMessage("");
+    setActionError("");
+    try {
+      await api.exportTemplate(slug);
+      setMessage(`Exported "${slug}" to a template file.`);
+      setRefresh((n) => n + 1);
+    } catch (e) {
+      setActionError(e.message);
+    }
+  }
+
+  async function importPicked() {
+    if (!picked) return;
+    setMessage("");
+    setActionError("");
+    try {
+      const created = await api.importTemplate(picked);
+      setMessage(`Imported "${created.title}" as a new problem.`);
+      setPicked("");
+      setRefresh((n) => n + 1);
+    } catch (e) {
+      setActionError(e.message);
+    }
+  }
 
   return (
     <section className="cat-problems">
@@ -86,9 +132,27 @@ export default function ProblemsPage() {
         </label>
       </div>
 
-      {error && (
+      <div className="cat-filters">
+        <label>
+          Saved templates
+          <select value={picked} onChange={(e) => setPicked(e.target.value)}>
+            <option value="">Choose a template</option>
+            {templates.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button disabled={!picked} onClick={importPicked}>
+          Import template
+        </button>
+      </div>
+
+      {message && <p className="cat-ok">{message}</p>}
+      {(error || actionError) && (
         <p className="cat-error" role="alert">
-          {error}
+          {actionError || error}
         </p>
       )}
 
@@ -99,6 +163,7 @@ export default function ProblemsPage() {
             <th>Difficulty</th>
             <th>Author</th>
             <th>Created</th>
+            <th>Template</th>
           </tr>
         </thead>
         <tbody>
@@ -108,11 +173,14 @@ export default function ProblemsPage() {
               <td>{p.difficulty}</td>
               <td>{p.createdBy?.profile?.handle ?? "-"}</td>
               <td>{new Date(p.createdAt).toLocaleDateString()}</td>
+              <td>
+                <button onClick={() => exportOne(p.slug)}>Export</button>
+              </td>
             </tr>
           ))}
           {data && data.items.length === 0 && (
             <tr>
-              <td colSpan="4" className="cat-muted">
+              <td colSpan="5" className="cat-muted">
                 No problems match these filters.
               </td>
             </tr>

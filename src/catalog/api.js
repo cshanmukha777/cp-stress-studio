@@ -48,4 +48,7 @@ export const api = {
   problems: (params) => request(`/problems?${new URLSearchParams(params)}`),
   profile: () => request("/profile"),
   updateProfile: (body) => request("/profile", { method: "PUT", body }),
+  templates: () => request("/templates"),
+  exportTemplate: (slug) => request(`/templates/export/${slug}`, { method: "POST" }),
+  importTemplate: (slug) => request(`/templates/import/${slug}`, { method: "POST" }),
 };
