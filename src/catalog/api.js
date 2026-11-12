@@ -45,4 +45,7 @@ export const api = {
     request("/auth/login", { method: "POST", body: { email, password } }),
   register: (form) => request("/auth/register", { method: "POST", body: form }),
   me: () => request("/auth/me"),
+  problems: (params) => request(`/problems?${new URLSearchParams(params)}`),
+  profile: () => request("/profile"),
+  updateProfile: (body) => request("/profile", { method: "PUT", body }),
 };

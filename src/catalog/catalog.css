@@ -10,3 +10,20 @@
 .cat-card input { background: #0f1114; border: 1px solid #2a2d33; border-radius: 6px; padding: 10px; color: #e6e6e6; }
 .cat-error { color: #ff7b72; margin: 0; font-size: 14px; }
 .cat-link { background: none; border: 0; color: #79b8ff; cursor: pointer; font-size: 14px; }
+
+.cat-problems { max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+.cat-filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+.cat-filters label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #a0a6b0; }
+.cat-filters input, .cat-filters select { background: #0f1114; border: 1px solid #2a2d33; border-radius: 6px; padding: 8px 10px; color: #e6e6e6; min-width: 110px; }
+.cat-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.cat-table th, .cat-table td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #2a2d33; }
+.cat-table th { color: #a0a6b0; font-weight: 500; }
+.cat-pager { display: flex; align-items: center; justify-content: space-between; }
+
+.cat-tabs { display: flex; gap: 6px; margin-left: 16px; }
+.cat-tab { background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 6px 12px; color: #a0a6b0; cursor: pointer; }
+.cat-tab.active { background: #1f2329; border-color: #2a2d33; color: #e6e6e6; }
+.cat-profile { max-width: 460px; }
+.cat-profile textarea, .cat-profile select { background: #0f1114; border: 1px solid #2a2d33; border-radius: 6px; padding: 10px; color: #e6e6e6; font-family: inherit; }
+.cat-profile input:disabled { opacity: 0.6; }
+.cat-ok { color: #56d364; margin: 0; font-size: 14px; }
