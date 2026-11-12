@@ -153,6 +153,15 @@ export default function App() {
         <h1>CP Stress Studio</h1>
         <span className="muted">Local execution workbench</span>
         <div className="spacer" />
+        <button onClick={() => setShowCatalog(true)}>
+          Account &amp; Problems
+        </button>
+        <button
+          disabled={execution.busy || !problemId}
+          onClick={() => setProblemRecords(true)}
+        >
+          Problem records
+        </button>
         <button
           disabled={!window.electronAPI}
           onClick={() => setDrawer(!drawer)}
@@ -332,7 +341,45 @@ export default function App() {
           busy={execution.busy}
         />
       )}
-        {showCatalog && <CatalogPanel onClose={() => setShowCatalog(false)} />}
+      {problemRecords && (
+        <ProblemRecords
+          problemId={problemId}
+          current={{ single, stdin, expected }}
+          onClose={() => setProblemRecords(false)}
+          onSolution={(row) => {
+            setSingle({ language: row.language, code: row.code });
+            setSolutionId(row.id);
+            setMode("single");
+            execution.setResult(null);
+            setProblemRecords(false);
+          }}
+          onTest={(row) => {
+            setStdin(row.input);
+            setExpected("");
+            setCheckExpected(false);
+            setCaseNumber(row.caseNumber);
+            setMode("single");
+            execution.setResult(null);
+            setProblemRecords(false);
+          }}
+          onSubmission={(row) => {
+            setMode("single");
+            setSingle({
+              language: row.request.language,
+              code: row.request.code,
+            });
+            setStdin(row.request.stdin);
+            setTimeLimit(row.request.timeLimit);
+            setSolutionId(undefined);
+            setCaseNumber(undefined);
+            setExpected("");
+            setCheckExpected(false);
+            execution.setResult(row.result);
+            setProblemRecords(false);
+          }}
+        />
+      )}
+      {showCatalog && <CatalogPanel onClose={() => setShowCatalog(false)} />}
     </main>
   );
 }
