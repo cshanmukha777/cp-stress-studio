@@ -1,5 +1,21 @@
 import { prisma } from './prisma.js';
 
+export function withExecutionDb(operation) {
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SET LOCAL lock_timeout = '1500ms'`;
+    await tx.$executeRaw`SET LOCAL statement_timeout = '2500ms'`;
+    return operation(tx);
+  }, { maxWait: 1500, timeout: 5000 });
+}
+
+const contentionCodes = new Set(['55P03', '40P01', '40001', '57014', 'P1008', 'P2024', 'P2028', 'P2034']);
+
+export function isExecutionDbBusy(error) {
+  const adapter = error?.meta?.driverAdapterError?.cause ?? error?.cause;
+  return [error?.code, error?.meta?.code, adapter?.code, adapter?.originalCode]
+    .some((code) => contentionCodes.has(code));
+}
+
 export function getProblemExecution(problemId) {
   return prisma.problem.findUnique({
     where: { id: problemId },
@@ -20,7 +36,7 @@ export function getProblemExecution(problemId) {
 
 export const solutions = {
   create: (problemId, data) => prisma.solution.create({ data: { problemId, ...data } }),
-  get: (problemId, id) => prisma.solution.findUnique({ where: { problemId_id: { problemId, id } } }),
+  get: (problemId, id, db = prisma) => db.solution.findUnique({ where: { problemId_id: { problemId, id } } }),
   update: (problemId, id, data) =>
     prisma.solution.update({ where: { problemId_id: { problemId, id } }, data }),
   remove: (problemId, id) => prisma.$transaction([
@@ -32,8 +48,8 @@ export const solutions = {
 export const testCases = {
   create: (problemId, caseNumber, data) =>
     prisma.testCase.create({ data: { problemId, caseNumber, ...data }, omit: { expected: true } }),
-  get: (problemId, caseNumber) =>
-    prisma.testCase.findUnique({ where: { problemId_caseNumber: { problemId, caseNumber } } }),
+  get: (problemId, caseNumber, db = prisma) =>
+    db.testCase.findUnique({ where: { problemId_caseNumber: { problemId, caseNumber } } }),
   update: (problemId, caseNumber, data) =>
     prisma.testCase.update({
       where: { problemId_caseNumber: { problemId, caseNumber } },
@@ -45,7 +61,7 @@ export const testCases = {
 };
 
 export const submissions = {
-  create: (data) => prisma.submission.create({ data }),
+  create: (data) => withExecutionDb((db) => db.submission.create({ data })),
   list: (problemId) => prisma.submission.findMany({
     where: { problemId },
     orderBy: { id: 'desc' },

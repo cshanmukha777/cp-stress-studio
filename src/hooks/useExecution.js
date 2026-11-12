@@ -58,8 +58,14 @@ export function useExecution() {
         setResult(await window.electronAPI.startStress({ ...request, runId }));
       }
     } catch (e) {
-      if (e.name === "AbortError") setResult({ status: "CANCELLED" });
-      else setError(e.message);
+      if (controller.current?.signal.aborted || e?.name === "AbortError")
+        setResult({ status: "CANCELLED" });
+      else
+        setError(
+          e instanceof Error
+            ? e.message
+            : "Execution could not finish. Try again.",
+        );
     } finally {
       controller.current = null;
       active.current = null;

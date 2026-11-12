@@ -1,4 +1,11 @@
-export default function Result({ result, logs = "", busy, phase, metrics }) {
+export default function Result({
+  result,
+  logs = "",
+  busy,
+  phase,
+  metrics,
+  error,
+}) {
   return (
     <section className="result-pane">
       <header className="pane-header">
@@ -42,9 +49,14 @@ export default function Result({ result, logs = "", busy, phase, metrics }) {
           {result.stderr}
         </pre>
       )}
+      {error && (
+        <p role="alert" className="error">
+          {error}
+        </p>
+      )}
       {result?.persistenceError && (
         <p role="alert" className="error">
-          Run finished, but saving failed: {result.persistenceError}
+          {result.persistenceError}
         </p>
       )}
     </section>
