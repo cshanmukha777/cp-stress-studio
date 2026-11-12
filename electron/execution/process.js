@@ -39,6 +39,7 @@ function supervise(
       memory = null,
       bytes = 0;
     let memoryProbe = null;
+    let exited = false;
     const child = spawn(command, args, {
       cwd,
       env,
@@ -54,7 +55,7 @@ function supervise(
     const timer = setTimeout(() => stop("TLE"), timeout);
     let lastMetrics = -Infinity;
     const sample = (rss) => {
-      if (status || !Number.isFinite(rss) || rss <= 0) return;
+      if (exited || status || !Number.isFinite(rss) || rss <= 0) return;
       memory = Math.max(memory || 0, rss);
       if (memoryLimitKiB && rss > memoryLimitKiB) {
         stderr +=
@@ -102,7 +103,8 @@ function supervise(
     const capture = (stream, chunk) => {
       bytes += Buffer.byteLength(chunk);
       if (bytes > 1024 * 1024) {
-        stop("RE");
+        if (exited) status ||= "RE";
+        else stop("RE");
         return;
       }
       const text = chunk.toString();
@@ -119,20 +121,29 @@ function supervise(
       status ||= "RE";
       stderr += `${command}: ${error.message}`;
     });
-    child.on("close", (code, exitSignal) => {
-      if (memoryLimitKiB && !status && exitSignal) {
+    child.once("exit", (_code, exitSignal) => {
+      exited = true;
+      clearTimeout(timer);
+      clearInterval(sampler);
+      memoryProbe?.kill("SIGKILL");
+      signal?.removeEventListener("abort", abort);
+      if (!status && exitSignal) {
+        status = "RE";
         const detail =
           exitSignal === "SIGSEGV"
             ? "Segmentation fault"
             : "Process terminated";
         stderr += "\n" + detail + " (" + exitSignal + ")";
       }
+      // Descendants can keep the output pipes open after the child exits.
+      killTree(child);
+    });
+    child.once("close", (code) => {
       status ||= code === 0 ? "AC" : "RE";
       clearTimeout(timer);
       clearInterval(sampler);
       memoryProbe?.kill("SIGKILL");
       signal?.removeEventListener("abort", abort);
-      killTree(child); // Also reap descendants left behind by an exited parent.
       if (bytes > 1024 * 1024) stderr += "\nOutput limit exceeded (1 MiB)";
       resolve({
         status,
