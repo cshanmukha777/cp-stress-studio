@@ -4,6 +4,7 @@ import { prisma } from './db/prisma.js';
 import authRouter from './routes/auth.routes.js';
 import problemRouter from './routes/problem.routes.js';
 import profileRouter from './routes/profile.routes.js';
+import templateRouter from './routes/template.routes.js';
 import executionRouter from './routes/execution.routes.js';
 
 const app = express();
@@ -18,6 +19,7 @@ app.get('/api/health', async (_req, res) => {
 
 app.use('/api/auth', authRouter);
 app.use('/api/problems', problemRouter);
+app.use('/api/templates', templateRouter);
 app.use('/api/profile', profileRouter);
 
 export default app;
