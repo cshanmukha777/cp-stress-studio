@@ -31,8 +31,8 @@ test(
   },
   async () => {
     const result = await supervise(
-      process.execPath,
-      ["-e", "process.kill(process.pid, 'SIGSEGV')"],
+      "sh",
+      ["-c", 'ulimit -c 0 && kill -s SEGV "$$"'],
       {
         timeout: 3000,
         memoryLimitKiB: 512 * 1024,
@@ -50,3 +50,24 @@ test("Member 2 wall timeout stops a busy loop", async () => {
   });
   assert.equal(result.status, "TLE");
 });
+
+test(
+  "Member 2 reports external signals even while descendants hold output pipes",
+  {
+    skip: process.platform === "win32",
+  },
+  async () => {
+    for (const signal of ["TERM", "KILL"]) {
+      const result = await supervise(
+        "sh",
+        ["-c", 'sleep 10 & kill -s "$1" "$$"', "signal-test", signal],
+        { timeout: 1000 },
+      );
+      assert.equal(result.status, "RE");
+      assert.match(
+        result.stderr,
+        new RegExp("Process terminated \\(SIG" + signal + "\\)"),
+      );
+    }
+  },
+);
