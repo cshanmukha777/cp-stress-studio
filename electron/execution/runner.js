@@ -45,6 +45,7 @@ async function prepare(script, options = {}) {
         cwd,
         timeout: 30000,
         signal: options.signal,
+        env: options.env,
         memoryLimitKiB: options.memoryLimitKiB,
         onMetrics:
           options.onMetrics &&
@@ -84,7 +85,10 @@ async function prepare(script, options = {}) {
           onMetrics:
             runOptions.onMetrics &&
             ((sample) => runOptions.onMetrics("running", sample)),
-          env: { ...process.env, CP_STRESS_SEED: String(runOptions.seed ?? 1) },
+          env: {
+            ...(runOptions.env ?? process.env),
+            CP_STRESS_SEED: String(runOptions.seed ?? 1),
+          },
         });
       },
     };
