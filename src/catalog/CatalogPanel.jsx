@@ -3,6 +3,7 @@ import AuthForm from "./AuthForm";
 import ProblemsPage from "./ProblemsPage";
 import ProfilePage from "./ProfilePage";
 import TagsPage from "./TagsPage";
+import AnalyticsPage from "./AnalyticsPage";
 import { api, getToken, setToken } from "./api";
 import "./catalog.css";
 
@@ -33,6 +34,7 @@ export default function CatalogPanel({ onClose }) {
         {user && (
           <nav className="cat-tabs">
             {[
+              ["analytics", "Analytics"],
               ["problems", "Problems"],
               ["tags", "Tags"],
               ["profile", "Profile"],
@@ -65,6 +67,8 @@ export default function CatalogPanel({ onClose }) {
           <AuthForm onAuthed={setUser} />
         ) : tab === "problems" ? (
           <ProblemsPage />
+        ) : tab === "analytics" ? (
+          <AnalyticsPage />
         ) : tab === "tags" ? (
           <TagsPage />
         ) : (

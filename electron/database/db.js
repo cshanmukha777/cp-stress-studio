@@ -73,8 +73,103 @@ function createDatabase(filename) {
     );
     return get(collection, id);
   }
+  function getAnalytics(range = "30d") {
+    const days = { "7d": 7, "30d": 30, "90d": 90 }[range];
+    if (range !== "all" && !days) throw new Error("Invalid analytics range");
+    const since = days ? new Date(Date.now() - days * 86400000).toISOString() : null;
+    const stressRows = db.prepare(`SELECT id, created_at,
+      json_extract(data,'$.problemId') AS problem_id,
+      CAST(json_extract(data,'$.totalIterations') AS INTEGER) AS total_iterations,
+      CAST(json_extract(data,'$.passedIterations') AS INTEGER) AS passed_iterations,
+      CAST(json_extract(data,'$.failedIterations') AS INTEGER) AS failed_iterations,
+      json_extract(data,'$.verdict') AS verdict,
+      CAST(json_extract(data,'$.executionTime') AS REAL) AS execution_time,
+      CAST(json_extract(data,'$.averageRuntime') AS REAL) AS average_runtime
+      FROM records WHERE collection='history' AND json_extract(data,'$.mode')='stress'
+      ${since ? "AND created_at >= ?" : ""} ORDER BY created_at`).all(...(since ? [since] : []));
+    const caseRows = db.prepare(`SELECT id, created_at,
+      json_extract(data,'$.stressRunId') AS stress_run_id,
+      json_extract(data,'$.problemId') AS problem_id,
+      CAST(json_extract(data,'$.iterationNumber') AS INTEGER) AS iteration_number,
+      json_extract(data,'$.failureReason') AS failure_reason,
+      json_extract(data,'$.verdict') AS verdict
+      FROM records WHERE collection='counterexamples' ${since ? "AND created_at >= ?" : ""}
+      ORDER BY created_at DESC`).all(...(since ? [since] : []));
+    const stressIds = new Set(stressRows.map(({ id }) => id));
+    const filteredCases = stressIds.size
+      ? caseRows.filter((item) => stressIds.has(item.stress_run_id))
+      : [];
+    const sum = (key) => stressRows.reduce((n, row) => n + (Number(row[key]) || 0), 0);
+    const byProblem = new Map();
+    for (const row of stressRows) {
+      if (row.problem_id == null) continue;
+      const id = String(row.problem_id);
+      const item = byProblem.get(id) || { problemId: id, stressRuns: 0, totalIterations: 0, passedIterations: 0, failedIterations: 0, runtimeTotal: 0, runtimeCount: 0 };
+      item.stressRuns++;
+      item.totalIterations += Number(row.total_iterations) || 0;
+      item.passedIterations += Number(row.passed_iterations) || 0;
+      item.failedIterations += Number(row.failed_iterations) || 0;
+      if (row.average_runtime != null && Number.isFinite(Number(row.average_runtime))) { item.runtimeTotal += Number(row.average_runtime); item.runtimeCount++; }
+      byProblem.set(id, item);
+    }
+    const problemStats = [...byProblem.values()].map((item) => ({
+      ...item,
+      passRate: item.totalIterations ? item.passedIterations / item.totalIterations : 0,
+      averageRuntime: item.runtimeCount ? item.runtimeTotal / item.runtimeCount : null,
+    })).sort((a, b) => b.stressRuns - a.stressRuns);
+    const runsByDay = new Map();
+    const runtimesByDay = new Map();
+    const verdicts = { passed: 0, failed: 0, errors: 0, other: 0 };
+    for (const row of stressRows) {
+      const day = row.created_at.slice(0, 10);
+      runsByDay.set(day, (runsByDay.get(day) || 0) + 1);
+      const runtime = row.average_runtime == null ? NaN : Number(row.average_runtime);
+      if (Number.isFinite(runtime)) {
+        const bucket = runtimesByDay.get(day) || { total: 0, count: 0 };
+        bucket.total += runtime; bucket.count++; runtimesByDay.set(day, bucket);
+      }
+      const status = String(row.verdict || "").toUpperCase();
+      if (status === "AC") verdicts.passed++;
+      else if (status === "WA") verdicts.failed++;
+      else if (["RE", "TLE", "CE", "MLE", "OLE"].includes(status)) verdicts.errors++;
+      else verdicts.other++;
+    }
+    const reasons = new Map();
+    for (const item of filteredCases) {
+      const reason = String(item.failure_reason || "").trim();
+      if (reason) reasons.set(reason, (reasons.get(reason) || 0) + 1);
+    }
+    const execTimes = stressRows.filter((row) => row.execution_time != null).map((row) => Number(row.execution_time)).filter(Number.isFinite);
+    return {
+      range,
+      overview: {
+        totalStressRuns: stressRows.length,
+        totalIterations: sum("total_iterations"),
+        passedIterations: sum("passed_iterations"),
+        failedIterations: sum("failed_iterations"),
+        passRate: sum("total_iterations") ? sum("passed_iterations") / sum("total_iterations") : 0,
+        totalFailingCases: filteredCases.length,
+        totalProblemsTested: byProblem.size,
+        averageExecutionTime: execTimes.length ? execTimes.reduce((a, b) => a + b, 0) / execTimes.length : null,
+      },
+      verdicts,
+      runsOverTime: [...runsByDay].map(([date, count]) => ({ date, count })),
+      executionTimeTrends: [...runtimesByDay].map(([date, value]) => ({ date, averageRuntime: value.total / value.count })),
+      problemStats,
+      failingCasesByProblem: Object.fromEntries(filteredCases.reduce((map, item) => {
+        if (item.problem_id != null) { const id = String(item.problem_id); map.set(id, (map.get(id) || 0) + 1); }
+        return map;
+      }, new Map())),
+      failureReasons: [...reasons].map(([reason, count]) => ({ reason, count })).sort((a, b) => b.count - a.count).slice(0, 10),
+      recentFailingCases: filteredCases.slice(0, 20).map((item) => ({
+        id: item.id, stressRunId: item.stress_run_id, problemId: item.problem_id == null ? null : String(item.problem_id),
+        iterationNumber: item.iteration_number, failureReason: item.failure_reason, verdict: item.verdict, createdAt: item.created_at,
+      })),
+    };
+  }
   return {
     get,
+    getAnalytics,
     save,
     persistStressRun(request, result) {
       const failures = Array.isArray(result.failures)

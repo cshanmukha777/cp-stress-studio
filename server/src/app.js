@@ -8,6 +8,7 @@ import tagRouter from './routes/tag.routes.js';
 import profileRouter from './routes/profile.routes.js';
 import templateRouter from './routes/template.routes.js';
 import executionRouter from './routes/execution.routes.js';
+import analyticsRouter from './routes/analytics.routes.js';
 
 const app = express();
 app.use(cors());
@@ -20,6 +21,7 @@ app.get('/api/health', async (_req, res) => {
 });
 
 app.use('/api/auth', authRouter);
+app.use('/api/analytics', analyticsRouter);
 app.use('/api/problems', problemTagsRouter);
 app.use('/api/problems', problemRouter);
 app.use('/api/tags', tagRouter);

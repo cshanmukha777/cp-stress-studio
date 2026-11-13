@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   exportFailingCase: (record) => ipcRenderer.invoke("failing-case:export", record),
   onOutput: (callback) => subscribe("execution:output", callback),
   onProgress: (callback) => subscribe("stress:progress", callback),
+  stressAnalytics: (range) => ipcRenderer.invoke("analytics:stress", range),
   db: {
     list: (collection, workspaceId) =>
       ipcRenderer.invoke("db:list", collection, workspaceId),

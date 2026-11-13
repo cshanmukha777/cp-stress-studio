@@ -92,6 +92,7 @@ function registerIPC(ipcMain, db, isTrusted, exportFailingCase) {
   handle("db:list", (_event, collection, workspaceId) =>
     db.list(collection, workspaceId),
   );
+  handle("analytics:stress", (_event, range) => db.getAnalytics(range));
   handle("db:get", (_event, collection, id) => db.get(collection, id));
   handle("db:save", (_event, collection, record) =>
     db.save(collection, record),

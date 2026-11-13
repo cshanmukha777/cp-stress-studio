@@ -85,3 +85,30 @@ test("rolls back a stress run if a failing case cannot be saved", () => {
     db.close();
   }
 });
+
+test("aggregates real stress records and safely handles date ranges", () => {
+  const db = createDatabase(":memory:");
+  try {
+    db.persistStressRun({ problemId: 14, iterations: 3 }, {
+      status: "AC", total: 3, passed: 3, failed: 0,
+      executionTime: 15, averageRuntime: 5,
+    });
+    db.persistStressRun({ problemId: 14, iterations: 2 }, {
+      status: "WA", total: 2, passed: 1, failed: 1, executionTime: 25,
+      averageRuntime: 10, failures: [{ status: "WA", iteration: 2, input: "x", failureReason: "Mismatch" }],
+    });
+    const summary = db.getAnalytics("7d");
+    assert.deepEqual(summary.overview, {
+      totalStressRuns: 2, totalIterations: 5, passedIterations: 4,
+      failedIterations: 1, passRate: 0.8, totalFailingCases: 1,
+      totalProblemsTested: 1, averageExecutionTime: 20,
+    });
+    assert.deepEqual(summary.verdicts, { passed: 1, failed: 1, errors: 0, other: 0 });
+    assert.equal(summary.runsOverTime.reduce((n, item) => n + item.count, 0), 2);
+    assert.equal(summary.problemStats[0].problemId, "14");
+    assert.equal(summary.problemStats[0].averageRuntime, 7.5);
+    assert.deepEqual(summary.failureReasons, [{ reason: "Mismatch", count: 1 }]);
+    assert.equal(db.getAnalytics("all").overview.totalFailingCases, 1);
+    assert.throws(() => db.getAnalytics("bad"), /Invalid analytics range/);
+  } finally { db.close(); }
+});
