@@ -16,6 +16,11 @@ const listSelect = {
   difficulty: true,
   createdAt: true,
   createdBy: { select: { profile: { select: { handle: true } } } },
+  problemTags: {
+    select: {
+      tag: { select: { id: true, name: true, description: true, parentId: true } },
+    },
+  },
 };
 
 router.get('/', async (req, res) => {
@@ -52,7 +57,10 @@ router.get('/', async (req, res) => {
 router.get('/:slug', async (req, res) => {
   const problem = await prisma.problem.findUnique({
     where: { slug: req.params.slug },
-    include: { createdBy: { select: { profile: { select: { handle: true } } } } },
+    include: {
+      createdBy: { select: { profile: { select: { handle: true } } } },
+      problemTags: { include: { tag: true } },
+    },
   });
   if (!problem) return res.status(404).json({ error: 'Problem not found' });
   res.json(problem);

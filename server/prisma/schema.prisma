@@ -44,8 +44,36 @@ model Problem {
   solutions   Solution[]
   testCases   TestCase[]
   submissions Submission[]
+  problemTags ProblemTag[]
 
   @@map("problems")
+}
+
+model Tag {
+  id          Int          @id @default(autoincrement())
+  name        String       @unique
+  description String?
+  parentId    Int?         @map("parent_id")
+  parent      Tag?         @relation("TagHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Tag[]        @relation("TagHierarchy")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @default(now()) @updatedAt @map("updated_at")
+  problemTags ProblemTag[]
+
+  @@index([parentId])
+  @@map("tags")
+}
+
+model ProblemTag {
+  problemId Int      @map("problem_id")
+  tagId     Int      @map("tag_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  problem   Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([problemId, tagId])
+  @@index([tagId, createdAt])
+  @@map("problem_tags")
 }
 
 model Solution {

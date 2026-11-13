@@ -46,6 +46,19 @@ export const api = {
   register: (form) => request("/auth/register", { method: "POST", body: form }),
   me: () => request("/auth/me"),
   problems: (params) => request(`/problems?${new URLSearchParams(params)}`),
+  tags: (params = {}) => request(`/tags?${new URLSearchParams(params)}`),
+  tag: (id) => request(`/tags/${id}`),
+  createTag: (body) => request('/tags', { method: 'POST', body }),
+  updateTag: (id, body) => request(`/tags/${id}`, { method: 'PUT', body }),
+  deleteTag: (id) => request(`/tags/${id}`, { method: 'DELETE' }),
+  tagProblems: (id) => request(`/tags/${id}/problems`),
+  problemTags: (problemId) => request(`/problems/${problemId}/tags`),
+  replaceProblemTags: (problemId, tagIds) =>
+    request(`/problems/${problemId}/tags`, { method: 'POST', body: { tagIds, replace: true } }),
+  addProblemTags: (problemId, tagIds) =>
+    request(`/problems/${problemId}/tags`, { method: 'POST', body: { tagIds } }),
+  removeProblemTag: (problemId, tagId) =>
+    request(`/problems/${problemId}/tags/${tagId}`, { method: 'DELETE' }),
   profile: () => request("/profile"),
   updateProfile: (body) => request("/profile", { method: "PUT", body }),
   templates: () => request("/templates"),

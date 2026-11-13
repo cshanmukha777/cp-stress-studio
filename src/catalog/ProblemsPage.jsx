@@ -17,6 +17,16 @@ export default function ProblemsPage() {
   const [picked, setPicked] = useState("");
   const [message, setMessage] = useState("");
   const [actionError, setActionError] = useState("");
+  const [tagProblem, setTagProblem] = useState(null);
+  const [availableTags, setAvailableTags] = useState([]);
+  const [assignedTags, setAssignedTags] = useState([]);
+  const [selectedTagIds, setSelectedTagIds] = useState([]);
+  const [tagSearch, setTagSearch] = useState("");
+  const [tagLoading, setTagLoading] = useState(false);
+  const [assignmentLoading, setAssignmentLoading] = useState(false);
+  const [tagSaving, setTagSaving] = useState(false);
+  const [tagError, setTagError] = useState("");
+  const [tagMessage, setTagMessage] = useState("");
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -62,6 +72,39 @@ export default function ProblemsPage() {
     };
   }, [refresh]);
 
+  const tagProblemId = tagProblem?.id;
+
+  useEffect(() => {
+    if (!tagProblemId) return undefined;
+    let cancelled = false;
+    api.problemTags(tagProblemId)
+      .then((assignedData) => {
+        if (cancelled) return;
+        setAssignedTags(assignedData.items);
+        setSelectedTagIds(assignedData.items.map((tag) => tag.id));
+      })
+      .catch((e) => {
+        if (!cancelled) setTagError(e.message);
+      })
+      .finally(() => {
+        if (!cancelled) setAssignmentLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [tagProblemId]);
+
+  useEffect(() => {
+    if (!tagProblemId) return undefined;
+    let cancelled = false;
+    api.tags(tagSearch.trim() ? { q: tagSearch.trim() } : {})
+      .then((data) => {
+        if (cancelled) return;
+        setAvailableTags(data.items);
+      })
+      .catch((e) => { if (!cancelled) setTagError(e.message); })
+      .finally(() => { if (!cancelled) setTagLoading(false); });
+    return () => { cancelled = true; };
+  }, [tagProblemId, tagSearch]);
+
   const loading = result.key !== key;
   const { data, error } = result;
 
@@ -93,6 +136,53 @@ export default function ProblemsPage() {
       setRefresh((n) => n + 1);
     } catch (e) {
       setActionError(e.message);
+    }
+  }
+
+  function manageTags(problem) {
+    if (tagProblemId === problem.id) {
+      setTagProblem(null);
+      return;
+    }
+    setTagLoading(true);
+    setAssignmentLoading(true);
+    setTagProblem(problem);
+    setTagMessage("");
+    setTagError("");
+    setTagSearch("");
+    setAssignedTags(problem.problemTags?.map((relation) => relation.tag) || []);
+    setSelectedTagIds(problem.problemTags?.map((relation) => relation.tag.id) || []);
+  }
+
+  async function saveProblemTags() {
+    if (!tagProblem) return;
+    setTagSaving(true);
+    setTagError("");
+    setTagMessage("");
+    try {
+      const result = await api.replaceProblemTags(tagProblem.id, selectedTagIds);
+      setAssignedTags(result.items);
+      setSelectedTagIds(result.items.map((tag) => tag.id));
+      setTagMessage("Problem tags saved.");
+      setRefresh((n) => n + 1);
+    } catch (e) {
+      setTagError(e.message);
+    } finally {
+      setTagSaving(false);
+    }
+  }
+
+  async function removeProblemTag(tag) {
+    setTagError("");
+    setTagMessage("");
+    try {
+      await api.removeProblemTag(tagProblem.id, tag.id);
+      setAssignedTags((current) => current.filter((item) => item.id !== tag.id));
+      setSelectedTagIds((current) => current.filter((id) => id !== tag.id));
+      setTagMessage(`Removed ${tag.name}.`);
+      setRefresh((n) => n + 1);
+    } catch (e) {
+      setTagError(e.message);
     }
   }
 
@@ -163,7 +253,9 @@ export default function ProblemsPage() {
             <th>Difficulty</th>
             <th>Author</th>
             <th>Created</th>
+            <th>Tags</th>
             <th>Template</th>
+            <th>Manage</th>
           </tr>
         </thead>
         <tbody>
@@ -174,13 +266,23 @@ export default function ProblemsPage() {
               <td>{p.createdBy?.profile?.handle ?? "-"}</td>
               <td>{new Date(p.createdAt).toLocaleDateString()}</td>
               <td>
+                <div className="cat-problem-tags">
+                  {p.problemTags?.length
+                    ? p.problemTags.map(({ tag }) => <span className="cat-tag-pill" key={tag.id}>{tag.name}</span>)
+                    : <span className="cat-muted">No tags</span>}
+                </div>
+              </td>
+              <td>
                 <button onClick={() => exportOne(p.slug)}>Export</button>
+              </td>
+              <td>
+                <button onClick={() => manageTags(p)}>Manage tags</button>
               </td>
             </tr>
           ))}
           {data && data.items.length === 0 && (
             <tr>
-              <td colSpan="5" className="cat-muted">
+              <td colSpan="7" className="cat-muted">
                 No problems match these filters.
               </td>
             </tr>
@@ -203,6 +305,56 @@ export default function ProblemsPage() {
             Next
           </button>
         </div>
+      )}
+
+      {tagProblem && (
+        <section className="cat-problem-tag-editor" aria-label={`Tags for ${tagProblem.title}`}>
+          <header className="cat-problem-tag-header">
+            <div>
+              <h2>Tags · {tagProblem.title}</h2>
+              <p className="cat-muted">Select tags to apply to this problem. The same tag can be used by other problems.</p>
+            </div>
+            <button onClick={() => setTagProblem(null)}>Close</button>
+          </header>
+          {tagError && <p className="cat-error" role="alert">{tagError}</p>}
+          {tagMessage && <p className="cat-ok" role="status">{tagMessage}</p>}
+          <h3>Currently assigned</h3>
+          <div className="cat-problem-tags">
+            {assignedTags.length ? assignedTags.map((tag) => (
+              <span className="cat-tag-pill" key={tag.id}>
+                {tag.name}
+                <button aria-label={`Remove ${tag.name}`} onClick={() => removeProblemTag(tag)}>×</button>
+              </span>
+            )) : <span className="cat-muted">No tags assigned yet.</span>}
+          </div>
+          <label className="cat-tag-search">
+            Search available tags
+            <input value={tagSearch} onChange={(e) => { setTagLoading(true); setTagError(""); setTagSearch(e.target.value); }} placeholder="Type a tag name…" />
+          </label>
+          {assignmentLoading ? <p className="cat-muted" role="status">Loading assigned tags…</p> : null}
+          {tagLoading ? <p className="cat-muted" role="status">Loading tags…</p> : availableTags.length === 0 ? (
+            <p className="cat-muted">No matching tags. Create one in the Tags section.</p>
+          ) : (
+            <div className="cat-tag-choices">
+              {availableTags.map((tag) => (
+                <label className="cat-tag-choice" key={tag.id}>
+                  <input
+                    type="checkbox"
+                    disabled={assignmentLoading || tagSaving}
+                    checked={selectedTagIds.includes(tag.id)}
+                    onChange={(event) => setSelectedTagIds((ids) => event.target.checked
+                      ? [...new Set([...ids, tag.id])]
+                      : ids.filter((id) => id !== tag.id))}
+                  />
+                  <span><strong>{tag.name}</strong><small>{tag.description || 'No description'}</small></span>
+                </label>
+              ))}
+            </div>
+          )}
+          <button className="cat-tag-save" disabled={tagSaving || tagLoading || assignmentLoading} onClick={saveProblemTags}>
+            {tagSaving ? 'Saving tags…' : 'Save tag selection'}
+          </button>
+        </section>
       )}
     </section>
   );

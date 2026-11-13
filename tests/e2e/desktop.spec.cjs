@@ -139,6 +139,82 @@ test("stress mismatch saves input, loads history and persists workspace across r
   expect(await fs.readFile(exportPath, "utf8")).toContain(`=== Generated input ===\n${exactInput}`);
   await page.screenshot({ path: "test-results/stress-counterexample.png" });
 });
+test("catalog manages tags and assigns/removes them from a problem", async () => {
+  const tags = [];
+  let assigned = [];
+  const problem = {
+    id: 1,
+    title: "Two Sum",
+    slug: "two-sum",
+    difficulty: 800,
+    createdAt: new Date().toISOString(),
+    createdBy: { profile: { handle: "tester" } },
+    problemTags: [],
+  };
+  const json = (route, status, body) => route.fulfill({
+    status,
+    contentType: "application/json",
+    ...(status === 204 ? {} : { body: JSON.stringify(body) }),
+  });
+
+  await page.evaluate(() => localStorage.setItem("cp_token", "catalog-test"));
+  await page.route("**/api/auth/me", (route) => json(route, 200, {
+    email: "tester@example.com", role: "admin", profile: { handle: "tester" },
+  }));
+  await page.route("**/api/problems?*", (route) => json(route, 200, {
+    items: [{ ...problem, problemTags: assigned.map((tag) => ({ tag })) }],
+    total: 1, page: 1, pageSize: 5, totalPages: 1,
+  }));
+  await page.route("**/api/templates", (route) => json(route, 200, { templates: [] }));
+  await page.route("**/api/tags**", async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const match = url.pathname.match(/\/api\/tags\/(\d+)(?:\/(problems))?$/);
+    if (request.method() === "POST") {
+      const tag = { id: tags.length + 1, ...request.postDataJSON(), parent: null, children: [], createdAt: new Date().toISOString(), _count: { problemTags: 0, children: 0 } };
+      tags.push(tag);
+      return json(route, 201, tag);
+    }
+    if (request.method() === "GET" && match?.[2]) return json(route, 200, { items: assigned.length ? [problem] : [], total: assigned.length });
+    if (request.method() === "GET" && match) return json(route, 200, tags[Number(match[1]) - 1]);
+    const query = (url.searchParams.get("q") || "").toLowerCase();
+    const items = tags.filter((tag) => tag.name.toLowerCase().includes(query));
+    return json(route, 200, { items, total: items.length });
+  });
+  await page.route("**/api/problems/1/tags**", async (route) => {
+    const request = route.request();
+    if (request.method() === "GET") return json(route, 200, { items: assigned, total: assigned.length });
+    if (request.method() === "POST") {
+      const body = request.postDataJSON();
+      const selected = body.tagIds.map((id) => tags.find((tag) => tag.id === id)).filter(Boolean);
+      assigned = body.replace ? selected : [...new Map([...assigned, ...selected].map((tag) => [tag.id, tag])).values()];
+      return json(route, 200, { items: assigned, total: assigned.length });
+    }
+    if (request.method() === "DELETE") {
+      const id = Number(new URL(request.url()).pathname.split("/").at(-1));
+      assigned = assigned.filter((tag) => tag.id !== id);
+      return json(route, 204, null);
+    }
+  });
+
+  await page.getByRole("button", { name: "Account & Problems" }).click();
+  await page.getByRole("button", { name: "Tags", exact: true }).click();
+  await page.locator(".cat-tag-form input").first().fill("Array");
+  await page.locator(".cat-tag-form textarea").fill("Sequence data");
+  await page.locator(".cat-tag-form button[type='submit']").click();
+  await expect(page.locator(".cat-ok[role='status']")).toContainText("Tag created");
+  await expect(page.locator(".cat-tag-card")).toContainText("Array");
+
+  await page.getByRole("button", { name: "Problems", exact: true }).click();
+  await page.getByRole("button", { name: "Manage tags" }).click();
+  await page.getByRole("checkbox", { name: /Array/ }).check();
+  await page.getByRole("button", { name: "Save tag selection" }).click();
+  await expect(page.locator(".cat-problem-tag-editor [role='status']")).toContainText("Problem tags saved");
+  await expect(page.locator(".cat-table .cat-tag-pill")).toHaveText("Array");
+  await page.getByRole("button", { name: "Remove Array" }).click();
+  await expect(page.locator(".cat-table .cat-tag-pill")).toHaveCount(0);
+});
+
 test("stop cancels a live execution", async () => {
   let finish;
   const response = new Promise((resolve) => {

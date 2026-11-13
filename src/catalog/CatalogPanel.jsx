@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import AuthForm from "./AuthForm";
 import ProblemsPage from "./ProblemsPage";
 import ProfilePage from "./ProfilePage";
+import TagsPage from "./TagsPage";
 import { api, getToken, setToken } from "./api";
 import "./catalog.css";
 
@@ -33,6 +34,7 @@ export default function CatalogPanel({ onClose }) {
           <nav className="cat-tabs">
             {[
               ["problems", "Problems"],
+              ["tags", "Tags"],
               ["profile", "Profile"],
             ].map(([key, label]) => (
               <button
@@ -63,6 +65,8 @@ export default function CatalogPanel({ onClose }) {
           <AuthForm onAuthed={setUser} />
         ) : tab === "problems" ? (
           <ProblemsPage />
+        ) : tab === "tags" ? (
+          <TagsPage />
         ) : (
           <ProfilePage />
         )}

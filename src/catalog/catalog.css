@@ -27,3 +27,29 @@
 .cat-profile textarea, .cat-profile select { background: #0f1114; border: 1px solid #2a2d33; border-radius: 6px; padding: 10px; color: #e6e6e6; font-family: inherit; }
 .cat-profile input:disabled { opacity: 0.6; }
 .cat-ok { color: #56d364; margin: 0; font-size: 14px; }
+.cat-tags { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+.cat-tag-layout { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(270px, 1fr); gap: 20px; align-items: start; }
+.cat-tag-list-panel { min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.cat-tag-list { display: flex; flex-direction: column; gap: 8px; }
+.cat-tag-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; background: #16181d; border: 1px solid #2a2d33; border-radius: 8px; }
+.cat-tag-card p { margin: 4px 0; color: #c0c4cc; font-size: 13px; }
+.cat-tag-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.cat-tag-form { margin: 0; max-width: none; }
+.cat-tag-form textarea, .cat-tag-form select { background: #0f1114; border: 1px solid #2a2d33; border-radius: 6px; padding: 10px; color: #e6e6e6; font: inherit; }
+.cat-tag-detail, .cat-problem-tag-editor { background: #16181d; border: 1px solid #2a2d33; border-radius: 8px; padding: 16px; }
+.cat-tag-detail header, .cat-problem-tag-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.cat-tag-detail h2, .cat-tag-detail h3, .cat-problem-tag-editor h2, .cat-problem-tag-editor h3 { margin: 0 0 8px; }
+.cat-tag-detail p { margin: 5px 0; }
+.cat-problem-tag-editor { display: flex; flex-direction: column; gap: 12px; }
+.cat-problem-tag-editor h3 { font-size: 14px; margin-bottom: 0; }
+.cat-tag-search { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #a0a6b0; }
+.cat-tag-search input { background: #0f1114; border: 1px solid #2a2d33; border-radius: 6px; padding: 8px 10px; color: #e6e6e6; }
+.cat-tag-choices { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 6px; max-height: 240px; overflow: auto; }
+.cat-tag-choice { display: flex; align-items: flex-start; gap: 8px; padding: 9px; background: #101216; border: 1px solid #292d33; border-radius: 6px; }
+.cat-tag-choice span { display: flex; flex-direction: column; gap: 2px; }
+.cat-tag-choice small { color: #a0a6b0; }
+.cat-tag-save { align-self: flex-start; }
+.cat-problem-tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.cat-tag-pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border: 1px solid #3b594f; border-radius: 999px; background: #17231f; color: #b7e4cf; font-size: 12px; white-space: nowrap; }
+.cat-tag-pill button { padding: 0 2px; border: 0; background: transparent; color: inherit; cursor: pointer; }
+@media (max-width: 850px) { .cat-tag-layout { grid-template-columns: 1fr; } .cat-tag-card { align-items: flex-start; flex-direction: column; } }
