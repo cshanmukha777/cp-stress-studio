@@ -23,8 +23,13 @@ public class ArrayLoader : MonoBehaviour
 
     CaseData data;
     List<GameObject> bars = new List<GameObject>();
+    HashSet<GameObject> wrongBars = new HashSet<GameObject>();
     int currentView = 2;
     int currentCamera = 0;
+    bool gameActive = false;
+    float timeLeft = 0f;
+    int score = 0;
+    string message = "";
 
     void Start()
     {
@@ -49,6 +54,19 @@ public class ArrayLoader : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Alpha2)) ShowView(1);
         if (Input.GetKeyDown(KeyCode.Alpha3)) ShowView(2);
         if (Input.GetKeyDown(KeyCode.C)) NextCamera();
+
+        if (gameActive)
+        {
+            timeLeft -= Time.deltaTime;
+            if (timeLeft <= 0f)
+            {
+                EndGame("Time up!");
+            }
+            else if (Input.GetMouseButtonDown(0))
+            {
+                ClickBar();
+            }
+        }
     }
 
     void OnGUI()
@@ -62,6 +80,60 @@ public class ArrayLoader : MonoBehaviour
             LoadData();
             ShowView(currentView);
         }
+        if (GUI.Button(new Rect(10, 210, 140, 35), "Start Game")) StartGame();
+
+        GUI.Label(new Rect(Screen.width - 320, 10, 310, 25), "Score: " + score + "   Time: " + Mathf.CeilToInt(Mathf.Max(timeLeft, 0f)));
+        GUI.Label(new Rect(Screen.width - 320, 35, 310, 25), "Expected: " + string.Join(" ", data.expected));
+        GUI.Label(new Rect(Screen.width - 320, 60, 310, 25), message);
+    }
+
+    void StartGame()
+    {
+        currentView = 2;
+        ClearBars();
+        score = 0;
+        timeLeft = 30f;
+        message = "Find the wrong bars!";
+        gameActive = true;
+        BuildBars(data.actual, neutralMaterial, false);
+        for (int i = 0; i < data.actual.Length; i++)
+        {
+            if (data.actual[i] != data.expected[i])
+            {
+                wrongBars.Add(bars[i]);
+            }
+        }
+    }
+
+    void ClickBar()
+    {
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        RaycastHit hit;
+        if (!Physics.Raycast(ray, out hit)) return;
+
+        GameObject clicked = hit.collider.gameObject;
+        if (wrongBars.Contains(clicked))
+        {
+            score += 1;
+            wrongBars.Remove(clicked);
+            clicked.GetComponent<Renderer>().material = redMaterial;
+            Destroy(Instantiate(burstPrefab, clicked.transform.position, Quaternion.identity), 2f);
+            if (wrongBars.Count == 0)
+            {
+                EndGame("You found all wrong bars!");
+            }
+        }
+        else if (bars.Contains(clicked))
+        {
+            score -= 1;
+            message = "Wrong click! -1";
+        }
+    }
+
+    void EndGame(string text)
+    {
+        gameActive = false;
+        message = text + " Final score: " + score;
     }
 
     void NextCamera()
@@ -74,6 +146,8 @@ public class ArrayLoader : MonoBehaviour
     void ShowView(int view)
     {
         currentView = view;
+        gameActive = false;
+        message = "";
         ClearBars();
         if (view == 0) BuildBars(data.input, neutralMaterial, false);
         if (view == 1) BuildBars(data.expected, greenMaterial, false);
@@ -87,6 +161,7 @@ public class ArrayLoader : MonoBehaviour
             Destroy(bar);
         }
         bars.Clear();
+        wrongBars.Clear();
     }
 
     void BuildBars(int[] values, Material baseMaterial, bool compare)
