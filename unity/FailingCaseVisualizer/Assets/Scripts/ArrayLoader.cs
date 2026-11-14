@@ -15,6 +15,7 @@ public class ArrayLoader : MonoBehaviour
 {
     public GameObject barPrefab;
     public GameObject burstPrefab;
+    public GameObject pedestalPrefab;
     public Material greenMaterial;
     public Material redMaterial;
     public Material neutralMaterial;
@@ -23,6 +24,7 @@ public class ArrayLoader : MonoBehaviour
 
     CaseData data;
     List<GameObject> bars = new List<GameObject>();
+    List<GameObject> pedestals = new List<GameObject>();
     HashSet<GameObject> wrongBars = new HashSet<GameObject>();
     int currentView = 2;
     int currentCamera = 0;
@@ -160,7 +162,12 @@ public class ArrayLoader : MonoBehaviour
         {
             Destroy(bar);
         }
+        foreach (GameObject pedestal in pedestals)
+        {
+            Destroy(pedestal);
+        }
         bars.Clear();
+        pedestals.Clear();
         wrongBars.Clear();
     }
 
@@ -168,11 +175,16 @@ public class ArrayLoader : MonoBehaviour
     {
         for (int i = 0; i < values.Length; i++)
         {
+            GameObject pedestal = Instantiate(pedestalPrefab);
+            pedestal.transform.position = new Vector3(i * spacing, 0.1f, 0f);
+            pedestal.AddComponent<BoxCollider>();
+            pedestals.Add(pedestal);
+
             GameObject bar = Instantiate(barPrefab);
             bars.Add(bar);
             float height = values[i];
             bar.transform.localScale = new Vector3(1f, height, 1f);
-            bar.transform.position = new Vector3(i * spacing, height / 2f, 0f);
+            bar.transform.position = new Vector3(i * spacing, 0.2f + height / 2f, 0f);
 
             Renderer r = bar.GetComponent<Renderer>();
             r.material = baseMaterial;
