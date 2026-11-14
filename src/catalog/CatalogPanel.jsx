@@ -11,6 +11,7 @@ export default function CatalogPanel({ onClose }) {
   const [user, setUser] = useState(null);
   const [checking, setChecking] = useState(Boolean(getToken()));
   const [tab, setTab] = useState("problems");
+  const [notice, setNotice] = useState("");
 
   useEffect(() => {
     if (!getToken()) return;
@@ -21,10 +22,21 @@ export default function CatalogPanel({ onClose }) {
       .finally(() => setChecking(false));
   }, []);
 
+  useEffect(() => {
+    const expired = () => {
+      setUser(null);
+      setTab("problems");
+      setNotice("Your session expired. Please sign in again.");
+    };
+    window.addEventListener("cp-session-expired", expired);
+    return () => window.removeEventListener("cp-session-expired", expired);
+  }, []);
+
   function logout() {
     setToken(null);
     setUser(null);
     setTab("problems");
+    setNotice("");
   }
 
   return (
@@ -64,7 +76,15 @@ export default function CatalogPanel({ onClose }) {
         {checking ? (
           <p className="cat-muted">Checking session...</p>
         ) : !user ? (
-          <AuthForm onAuthed={setUser} />
+          <>
+            {notice && <p className="cat-error">{notice}</p>}
+            <AuthForm
+              onAuthed={(u) => {
+                setNotice("");
+                setUser(u);
+              }}
+            />
+          </>
         ) : tab === "problems" ? (
           <ProblemsPage />
         ) : tab === "analytics" ? (
