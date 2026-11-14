@@ -5,6 +5,7 @@ const { pathToFileURL } = require("node:url");
 const { createDatabase } = require("./database/db");
 const { registerIPC } = require("./ipc");
 const { formatFailingCase } = require("./execution/failingCaseExport");
+const { startPackagedBackend, stopPackagedBackend } = require("./packaged-backend");
 let db, disposeIPC;
 
 function createWindow() {
@@ -25,7 +26,7 @@ function createWindow() {
   mainWindow.webContents.on("will-navigate", (event) => event.preventDefault());
 
   // In development, load the Vite local server; in production, load the built files
-  const isDev = process.env.NODE_ENV === "development";
+  const isDev = !app.isPackaged && process.env.NODE_ENV === "development";
   if (isDev) {
     mainWindow.loadURL("http://localhost:5173");
     mainWindow.webContents.openDevTools();
@@ -34,10 +35,22 @@ function createWindow() {
   }
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  if (app.isPackaged) {
+    try {
+      await startPackagedBackend(() => {
+        dialog.showErrorBox("CP Stress Studio", "The local API stopped. Restart the app to reconnect.");
+        app.quit();
+      });
+    } catch (error) {
+      dialog.showErrorBox("CP Stress Studio could not start", error.message);
+      app.quit();
+      return;
+    }
+  }
   db = createDatabase(path.join(app.getPath("userData"), "studio.sqlite"));
   const trustedURL =
-    process.env.NODE_ENV === "development"
+    !app.isPackaged && process.env.NODE_ENV === "development"
       ? "http://localhost:5173/"
       : pathToFileURL(path.join(__dirname, "../dist/index.html")).href;
   disposeIPC = registerIPC(
@@ -83,4 +96,7 @@ app.on("before-quit", (event) => {
     app.quit();
   });
 });
-app.on("will-quit", () => db?.close());
+app.on("will-quit", () => {
+  stopPackagedBackend();
+  db?.close();
+});
