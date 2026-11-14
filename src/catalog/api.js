@@ -36,6 +36,11 @@ export async function request(path, { method = "GET", body } = {}) {
   }
   if (res.status === 204) return null;
   const data = await res.json().catch(() => ({}));
+  if (res.status === 401 && token) {
+    setToken(null);
+    window.dispatchEvent(new Event("cp-session-expired"));
+    throw new Error("Session expired. Please sign in again.");
+  }
   if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
   return data;
 }
