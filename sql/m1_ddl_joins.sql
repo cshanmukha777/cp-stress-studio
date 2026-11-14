@@ -11,6 +11,8 @@ CREATE TABLE problem_notes (
 
 ALTER TABLE problem_notes ADD COLUMN created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
 ALTER TABLE problem_notes ADD CONSTRAINT problem_notes_note_len CHECK (LENGTH(note) <= 500);
+ALTER TABLE problem_notes ADD COLUMN reviewer_id INTEGER;
+ALTER TABLE problem_notes ADD CONSTRAINT problem_notes_reviewer_fk FOREIGN KEY (reviewer_id) REFERENCES users(id);
 
 INSERT INTO problem_notes (problem_id, author_id, note, rating) VALUES (1, 3, 'Use a hash map', 5);
 
