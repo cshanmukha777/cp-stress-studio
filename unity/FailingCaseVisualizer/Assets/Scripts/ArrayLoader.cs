@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.IO;
 using UnityEngine;
 
 [System.Serializable]
@@ -22,6 +21,7 @@ public class ArrayLoader : MonoBehaviour
     public Color pedestalColor = new Color(0.2f, 0.3f, 0.4f);
     public Camera[] cameras;
     public float spacing = 1.5f;
+    public TextAsset caseFile;
 
     CaseData data;
     List<GameObject> bars = new List<GameObject>();
@@ -46,9 +46,7 @@ public class ArrayLoader : MonoBehaviour
 
     void LoadData()
     {
-        string path = Path.Combine(Application.streamingAssetsPath, "failing_case.json");
-        string json = File.ReadAllText(path);
-        data = JsonUtility.FromJson<CaseData>(json);
+        data = JsonUtility.FromJson<CaseData>(caseFile.text);
     }
 
     void Update()
