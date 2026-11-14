@@ -1,5 +1,7 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { prisma } from './db/prisma.js';
 import authRouter from './routes/auth.routes.js';
 import problemRouter from './routes/problem.routes.js';
@@ -9,6 +11,8 @@ import profileRouter from './routes/profile.routes.js';
 import templateRouter from './routes/template.routes.js';
 import executionRouter from './routes/execution.routes.js';
 import analyticsRouter from './routes/analytics.routes.js';
+
+const unityDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public', 'unity');
 
 const app = express();
 app.use(cors());
@@ -27,6 +31,16 @@ app.use('/api/problems', problemRouter);
 app.use('/api/tags', tagRouter);
 app.use('/api/templates', templateRouter);
 app.use('/api/profile', profileRouter);
+
+app.use('/unity', express.static(unityDir, {
+  setHeaders(res, filePath) {
+    if (!filePath.endsWith('.br')) return;
+    res.setHeader('Content-Encoding', 'br');
+    if (filePath.endsWith('.wasm.br')) res.setHeader('Content-Type', 'application/wasm');
+    else if (filePath.endsWith('.js.br')) res.setHeader('Content-Type', 'application/javascript');
+    else res.setHeader('Content-Type', 'application/octet-stream');
+  },
+}));
 
 app.use((error, _req, res, next) => {
   if (res.headersSent) return next(error);
