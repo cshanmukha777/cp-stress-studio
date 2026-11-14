@@ -414,6 +414,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ArrayLoader
   barPrefab: {fileID: 7691320998590651981, guid: 887ba324fc2e645b29ed1bfc4de0275f, type: 3}
   burstPrefab: {fileID: 531316612247117136, guid: 216eea172f0de4a4ea603505264c713f, type: 3}
+  pedestalPrefab: {fileID: 1619186535603080521, guid: 74573dee884634aa0b861cb53adcd1f1, type: 3}
   greenMaterial: {fileID: 2100000, guid: 6d862cb53c4e844e1b9386a1533b80e7, type: 2}
   redMaterial: {fileID: 2100000, guid: 67296d1ca80fc4ccd90a4e09398337b0, type: 2}
   neutralMaterial: {fileID: 2100000, guid: 813afa009d2d34678b996f4905930fe9, type: 2}
