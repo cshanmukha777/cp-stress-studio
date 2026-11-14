@@ -19,6 +19,7 @@ public class ArrayLoader : MonoBehaviour
     public Material greenMaterial;
     public Material redMaterial;
     public Material neutralMaterial;
+    public Color pedestalColor = new Color(0.2f, 0.3f, 0.4f);
     public Camera[] cameras;
     public float spacing = 1.5f;
 
@@ -175,9 +176,12 @@ public class ArrayLoader : MonoBehaviour
     {
         for (int i = 0; i < values.Length; i++)
         {
-            GameObject pedestal = Instantiate(pedestalPrefab);
+            GameObject pedestal = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            pedestal.transform.localScale = new Vector3(1.4f, 0.2f, 1.4f);
             pedestal.transform.position = new Vector3(i * spacing, 0.1f, 0f);
-            pedestal.AddComponent<BoxCollider>();
+            Renderer pr = pedestal.GetComponent<Renderer>();
+            pr.material = new Material(neutralMaterial);
+            pr.material.color = pedestalColor;
             pedestals.Add(pedestal);
 
             GameObject bar = Instantiate(barPrefab);
