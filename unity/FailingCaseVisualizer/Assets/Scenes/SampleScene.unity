@@ -418,10 +418,12 @@ MonoBehaviour:
   greenMaterial: {fileID: 2100000, guid: 6d862cb53c4e844e1b9386a1533b80e7, type: 2}
   redMaterial: {fileID: 2100000, guid: 67296d1ca80fc4ccd90a4e09398337b0, type: 2}
   neutralMaterial: {fileID: 2100000, guid: 813afa009d2d34678b996f4905930fe9, type: 2}
+  pedestalColor: {r: 0.2, g: 0.3, b: 0.4, a: 1}
   cameras:
   - {fileID: 330585545}
   - {fileID: 1232831129}
   spacing: 1.5
+  caseFile: {fileID: 4900000, guid: 6089fe7ce767b4787ae4ef27f0d2d776, type: 3}
 --- !u!4 &669846686
 Transform:
   m_ObjectHideFlags: 0
