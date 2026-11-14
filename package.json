@@ -11,7 +11,8 @@
     "test": "node --test --test-concurrency=1 tests/*.test.cjs",
     "start": "electron .",
     "test:desktop": "npm run build && playwright test",
-    "viva:member2": "node scripts/viva_demo.mjs"
+    "viva:member2": "node scripts/viva_demo.mjs",
+    "dist:mac": "cross-env VITE_API_URL=http://127.0.0.1:4000 npm run build && node scripts/prepare-mac-backend.mjs && electron-builder --mac"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
@@ -32,6 +33,7 @@
     "concurrently": "^10.0.7",
     "cross-env": "^10.1.0",
     "electron": "^45.2.3",
+    "electron-builder": "26.18.0",
     "eslint": "^10.14.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.7",
@@ -45,5 +47,57 @@
   "main": "electron/main.js",
   "engines": {
     "node": ">=22.13.0"
+  },
+  "build": {
+    "appId": "com.cshanmukha777.cpstressstudio",
+    "productName": "CP Stress Studio",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json",
+      "!node_modules/**/*"
+    ],
+    "asarUnpack": [
+      "server/node_modules/.prisma/**/*",
+      "server/node_modules/@prisma/**/*",
+      "server/src/generated/prisma/**/*",
+      "electron/execution/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "server",
+        "to": "backend/server",
+        "filter": [
+          "package.json",
+          "src/**/*",
+          "node_modules/**/*",
+          "node_modules/.prisma/**/*",
+          "!**/.env*"
+        ]
+      },
+      {
+        "from": "electron",
+        "to": "backend/electron",
+        "filter": [
+          "package.json",
+          "execution/**/*"
+        ]
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ]
+    }
   }
 }
