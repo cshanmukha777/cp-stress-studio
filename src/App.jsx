@@ -5,6 +5,7 @@ import StressWorkbench from "./components/StressWorkbench";
 import RecordsDrawer from "./components/RecordsDrawer";
 import ProblemRecords from "./components/ProblemRecords";
 import CatalogPanel from "./catalog/CatalogPanel";
+import UnityPanel from "./catalog/UnityPanel";
 import { useExecution } from "./hooks/useExecution";
 import "./App.css";
 const initial = {
@@ -40,6 +41,7 @@ export default function App() {
   const [problemRecords, setProblemRecords] = useState(false);
   const execution = useExecution();
   const [showCatalog, setShowCatalog] = useState(false);
+  const [showUnity, setShowUnity] = useState(false);
   const snapshot = () => ({
     single,
     stdin,
@@ -181,6 +183,7 @@ export default function App() {
         <button onClick={() => setShowCatalog(true)}>
           Account &amp; Problems
         </button>
+        <button onClick={() => setShowUnity(true)}>3D View</button>
         <button
           disabled={execution.busy || !problemId}
           onClick={() => setProblemRecords(true)}
@@ -414,6 +417,7 @@ export default function App() {
         />
       )}
       {showCatalog && <CatalogPanel onClose={() => setShowCatalog(false)} />}
+      {showUnity && <UnityPanel onClose={() => setShowUnity(false)} />}
     </main>
   );
 }
