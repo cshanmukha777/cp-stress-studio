@@ -1,4 +1,4 @@
-import { BASE, getToken, request, setToken } from "./api";
+import { BASE, getToken, request, rejectSession } from "./api";
 
 export function executionPath(problemId) {
   if (!/^[1-9]\d*$/.test(String(problemId))) {
@@ -39,7 +39,7 @@ export async function streamSubmission(
     );
   }
   if (response.status === 401) {
-    if (getToken() === token) setToken(null);
+    rejectSession(token);
     await response.body?.cancel().catch(() => {});
     throw new Error(
       "Your session expired. Sign in again through Account & Problems, then retry.",

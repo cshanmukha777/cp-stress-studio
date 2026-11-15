@@ -1,3 +1,4 @@
+import { Navigate, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import AuthForm from "./AuthForm";
 import ProblemsPage from "./ProblemsPage";
@@ -7,43 +8,68 @@ import AnalyticsPage from "./AnalyticsPage";
 import { api, getToken, setToken } from "./api";
 import "./catalog.css";
 
-export default function CatalogPanel({ onClose }) {
+export default function CatalogPanel({ mode }) {
+  const navigate = useNavigate();
   const [user, setUser] = useState(null);
-  const [checking, setChecking] = useState(Boolean(getToken()));
+  const [checking, setChecking] = useState(!mode && Boolean(getToken()));
   const [tab, setTab] = useState("problems");
   const [notice, setNotice] = useState("");
 
+  const [attempt, setAttempt] = useState(0);
+  const [sessionError, setSessionError] = useState("");
+
   useEffect(() => {
-    if (!getToken()) return;
+    const token = getToken();
+    if (mode || !token || user) return;
+    let current = true;
     api
       .me()
-      .then(setUser)
-      .catch(() => setToken(null))
-      .finally(() => setChecking(false));
-  }, []);
+      .then((account) => {
+        if (current && getToken() === token) setUser(account);
+      })
+      .catch(() => {
+        if (current && getToken() === token) {
+          setSessionError(
+            "Could not verify your session. Check the API and retry.",
+          );
+        }
+      })
+      .finally(() => {
+        if (current) setChecking(false);
+      });
+
+    return () => {
+      current = false;
+    };
+  }, [attempt, mode, user]);
 
   useEffect(() => {
     const expired = () => {
       setUser(null);
       setTab("problems");
       setNotice("Your session expired. Please sign in again.");
+      setChecking(false);
+      navigate("/login", { replace: true });
     };
     window.addEventListener("cp-session-expired", expired);
     return () => window.removeEventListener("cp-session-expired", expired);
-  }, []);
+  }, [navigate]);
 
   function logout() {
     setToken(null);
     setUser(null);
     setTab("problems");
     setNotice("");
+    navigate("/login", { replace: true });
   }
+
+  if (!mode && !user && !getToken()) return <Navigate to="/login" replace />;
 
   return (
     <div className="cat-overlay" onKeyDown={(e) => e.stopPropagation()}>
       <header className="cat-header">
         <h1>Account &amp; Problems</h1>
-        {user && (
+        {user && !mode && (
           <nav className="cat-tabs">
             {[
               ["analytics", "Analytics"],
@@ -62,7 +88,7 @@ export default function CatalogPanel({ onClose }) {
           </nav>
         )}
         <div className="cat-spacer" />
-        {user && (
+        {user && !mode && (
           <>
             <span className="cat-muted">
               {user.profile?.handle ?? user.email} · {user.role}
@@ -70,21 +96,40 @@ export default function CatalogPanel({ onClose }) {
             <button onClick={logout}>Sign out</button>
           </>
         )}
-        <button onClick={onClose}>Back to workbench</button>
+        <button onClick={() => navigate("/")}>Back to workbench</button>
       </header>
       <main className="cat-body">
-        {checking ? (
+        {!mode && checking ? (
           <p className="cat-muted">Checking session...</p>
-        ) : !user ? (
+        ) : mode ? (
           <>
             {notice && <p className="cat-error">{notice}</p>}
             <AuthForm
+              key={mode}
+              mode={mode}
               onAuthed={(u) => {
                 setNotice("");
                 setUser(u);
+                setSessionError("");
+                navigate("/catalog", { replace: true });
               }}
             />
           </>
+        ) : !user ? (
+          <div className="cat-card">
+            <p role="alert">
+              {sessionError || "Could not verify the current session."}
+            </p>
+            <button
+              onClick={() => {
+                setChecking(true);
+                setSessionError("");
+                setAttempt((n) => n + 1);
+              }}
+            >
+              Retry
+            </button>
+          </div>
         ) : tab === "problems" ? (
           <ProblemsPage />
         ) : tab === "analytics" ? (
