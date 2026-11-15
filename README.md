@@ -1,90 +1,130 @@
 # CP Stress Studio
 
-A local Electron workbench for running competitive programming solutions and finding counterexamples by comparing a target solution with a brute-force reference.
+**A desktop workbench for writing competitive programming solutions and finding the inputs that break them.**
 
-![Stress workbench](docs/images/stress-counterexample.png)
+[![Build](https://github.com/cshanmukha777/cp-stress-studio/actions/workflows/build-dmg.yml/badge.svg)](https://github.com/cshanmukha777/cp-stress-studio/actions/workflows/build-dmg.yml)
+![License](https://img.shields.io/badge/license-pending-lightgrey)
+![Version](https://img.shields.io/badge/version-capstone-blue)
 
-## Run locally
+![CP Stress Studio showing a stress-test counterexample](docs/images/stress-counterexample.png)
 
-Requirements: Node.js 24 LTS and npm. Install the languages you use and make their commands available on the desktop app's `PATH`:
+## About the Project
 
-| Language | Toolchain | Source entry |
+Passing sample tests is easy to verify. Finding the input that exposes a subtle bug in an optimized solution often takes more work. CP Stress Studio brings editing, compilation, test generation, output comparison, and failure analysis into one desktop application.
+
+Start with a problem from the catalog, write a solution, and run it against custom input. When you need broader coverage, pair an optimized solution with a brute-force reference and an input generator. The stress workbench runs both solutions against the same generated cases and captures mismatches with the input, expected output, and actual output available for inspection.
+
+The workbench also supports the work around each run. Account sessions, problem tags, saved records, and submission analytics help users organize problems and revisit results. Local execution lets users run code with the C++, Python, and Java toolchains already installed on their machine.
+
+## Key Features
+
+- **Code workbench** — Edit C++, Python, and Java in Monaco. Supply standard input, optionally compare against expected output, and inspect verdicts, diagnostics, and timing.
+- **Local execution** — Compile and run programs with Node.js `child_process.spawn` in temporary working directories. Cancel active runs and inspect time-limit or runtime failures.
+- **Automated stress testing** — Compare an optimized solution with a brute-force reference across generated inputs. Reproduce failures with seeded generators and inspect output differences alongside the counterexample.
+- **Live execution feedback** — Follow build status, output, and available runtime metrics over Server-Sent Events for backend executions. The desktop stress workbench reports iteration progress through Electron IPC.
+- **Problem catalog and sessions** — Sign up, sign in, and browse the local catalog with JWT-backed sessions. Organize problems using tags and reuse code templates.
+- **Saved records and analytics** — Revisit workspaces, saved test cases, run history, and stress counterexamples. Review PostgreSQL-backed submission analytics for verdicts, runtime, and memory.
+
+## System Architecture
+
+| Layer | Technologies | Responsibility |
 | --- | --- | --- |
-| C++17 | `g++` | `main.cpp`; compiled with `-O3 -std=c++17` |
-| Python 3 | `python3` | `main.py` |
-| Java | JDK (`javac` and `java`) | `Main.java`, entry class `Main`, no package declaration |
+| Renderer | React, Vite, Tailwind CSS, Monaco Editor | Catalog, account screens, code editors, execution console, and stress workbench |
+| Desktop | Electron | Window lifecycle, preload bridge, desktop IPC, and packaged backend startup |
+| Local API | Node.js, Express, SSE | Authentication, catalog access, submission analytics, and streamed execution events |
+| Persistence | PostgreSQL, Prisma, local SQLite | PostgreSQL stores application records such as users, problems, and submissions. SQLite stores desktop workspaces, history, and stress counterexamples. |
+| Execution | Node.js `child_process.spawn`, host toolchains | Compilation, test execution, process cancellation, and output collection |
+| Build pipeline | GitHub Actions, Electron Builder | Cloud builds and downloadable macOS Apple Silicon DMG artifacts |
 
-```sh
+The React renderer calls Express over loopback for authentication, catalog data, analytics, and streamed single-run results. The desktop stress workbench uses Electron’s preload bridge to start, monitor, and cancel stress runs. In the packaged macOS app, Electron starts the bundled Express backend, which connects to a separately configured PostgreSQL instance through Prisma.
+
+## Getting Started
+
+### Prerequisites
+
+- **Node.js 24 LTS** and npm.
+- **PostgreSQL** running locally, with an empty development database and a PostgreSQL role that can create tables in it.
+- **Language toolchains** for the languages you plan to run. Make the corresponding commands available on your `PATH`.
+
+| Language | Required commands |
+| --- | --- |
+| C++17 | `g++` |
+| Python 3 | `python3` |
+| Java | `javac` and `java` |
+
+Run programs you trust. Submissions execute with your OS account’s privileges, and temporary directories provide file separation only.
+
+### Installation and Setup
+
+Clone the repository and install the locked dependencies for both packages.
+
+```bash
+git clone https://github.com/cshanmukha777/cp-stress-studio.git
+cd cp-stress-studio
 npm ci
+npm ci --prefix server
+cp server/.env.example server/.env
+```
+
+Edit `server/.env` using your local database credentials. Generate a local JWT signing secret with `openssl rand -hex 32`.
+
+```dotenv
+DATABASE_URL="postgresql://YOUR_DB_USER:YOUR_DB_PASSWORD@localhost:5432/cp_stress_studio"
+JWT_SECRET="REPLACE_WITH_YOUR_GENERATED_SECRET"
+PORT=4000
+```
+
+For a fresh development database, apply the schema and generate the Prisma client.
+
+```bash
+cd server
+npx prisma db push
+npx prisma generate
+cd ..
+```
+
+If your database already uses the repository’s migration history, run `npx prisma migrate deploy` from `server/` in place of `npx prisma db push`.
+
+### Run Locally
+
+From the repository root, start the backend in one terminal.
+
+```bash
+npm --prefix server run dev
+```
+
+Start the Vite renderer and Electron in a second terminal.
+
+```bash
 npm run dev
 ```
 
-To run the built renderer with Electron:
+The API listens on `http://127.0.0.1:4000` by default. To check the backend and its database connection, run:
 
-```sh
-npm run build
-npm start
+```bash
+curl -fsS http://127.0.0.1:4000/api/health
 ```
 
-If a parent shell sets `ELECTRON_RUN_AS_NODE`, remove it before starting Electron. Browser preview does not have execution or database access. Desktop scripts run with your OS account's privileges: temporary working directories are **not an OS security sandbox**. Only execute code you trust.
+### Build for Production
 
-## Single run
+On an Apple Silicon Mac with arm64 Node.js, run the following from the repository root:
 
-Choose C++17, Python 3 or Java, edit the solution, enter standard input and click **Run**. Enable **Compare** to check expected output. `AC` without comparison means the program exited successfully; it does not establish correctness. `Cmd/Ctrl+Enter` starts the selected run; **Stop** or `Escape` cancels it.
-
-Verdicts: `AC`, `WA`, `TLE`, `RE`, `CE`, and `CANCELLED`. Compiler diagnostics, stderr, stdout, elapsed execution milliseconds and sampled memory are shown in the console. Python syntax failures are runtime errors because Python is launched directly.
-
-## Stress test
-
-Edit the generator, brute-force reference, and optimal solution independently. Set 1–10,000 iterations, an optional 32-bit random seed, and a 50–30,000 ms per-process execution limit. Compiled programs are prepared once per stress session. Each iteration runs the generator, then reference and target with the same generated input. Comparison ignores whitespace differences but preserves token content and order. By default the first failure stops the loop; turn off **Stop on first failure** to keep going and save every failing input.
-
-The generator receives a per-iteration `CP_STRESS_SEED`; iteration one starts with the chosen seed and later iterations increment it modulo 2^32. With no seed entered, the app chooses one and stores it with history. Generators must explicitly use the variable for reproducible randomness. A mismatch or execution failure records its role, exact input, outputs, diagnostics, process status, and elapsed time. Failures in the generator or reference are labeled separately from target failures.
-
-Use **Save counterexample as test case** to keep a regression case, or **Open in single run** to debug it. Live progress counts only fully passed iterations.
-
-## Saved records
-
-**Saved records** contains workspaces/problems, test cases, execution history, and stress counterexamples. Save and update a named workspace to retain all editors and options. Load a test case, change its input/expected output in the workbench, then select it in the drawer and choose **Update selected test**. Records can be loaded, renamed and deleted; every collection also exposes create/read/update/delete through the validated preload API.
-
-History and failing counterexamples are saved automatically, including the source snapshot used for the run. A persistence failure is reported without hiding the execution result. Deleting a workspace keeps its historical records and removes their association.
-
-SQLite is stored at `app.getPath('userData')/studio.sqlite` using Node's built-in SQLite binding and WAL mode. There is no database server or Prisma generation step. The Day 1 Prisma packages remain installed but are not used by this persistence implementation.
-
-## Execution contract and limits
-
-- Source: at most 512 KiB per script; stdin: at most 1 MiB.
-- Compilation: 30-second deadline. Compiler failure, absence or timeout produces `CE` with diagnostics.
-- Execution: high-resolution wall time via `process.hrtime.bigint()`, excluding compilation.
-- Output: combined stdout/stderr capped at 1 MiB; excess output produces `RE`.
-- Memory: peak **sampled parent-process RSS**, in KiB, using `/proc` on Linux and `ps` on macOS. It is neither an enforced memory limit nor total process-tree memory. Very short runs or unsupported platforms return `null` (shown as unavailable).
-- POSIX process groups are killed with `SIGKILL`; Windows uses `taskkill /T /F`. Cancellation also covers compilation. Managed temporary directories are removed after execution/compilation failures, cancellation, and normal app shutdown. An OS crash or forced termination of Electron itself can leave a temporary directory.
-- Local programs can access files, network and other resources permitted to the current user. This application is not suitable as an untrusted-code server judge.
-
-## Architecture
-
-- `electron/execution/process.js`: process supervision, streamed output, resource telemetry, cancellation.
-- `electron/execution/runner.js`: validation, isolated temporary directories, compilation, reusable prepared programs.
-- `electron/execution/stress.js`: sequential comparison and counterexamples.
-- `electron/database/db.js`: SQLite CRUD and restart persistence.
-- `electron/ipc.js`: trusted-main-frame checks, per-window run ownership, persistence and shutdown drain.
-- `electron/preload.js`: narrow context-isolated API and removable event subscriptions.
-- `src/components/`: locally bundled Monaco editors, execution console, stress diff and records drawer.
-- `src/hooks/useExecution.js`: run identity, subscriptions, cancellation and restored-result state.
-
-Electron files use CommonJS through `electron/package.json`; React/Vite files remain ES modules. Vite's relative asset base and port 5173 are preserved. The production renderer has a content security policy, local Monaco workers, disabled Node integration, context isolation and a sandboxed preload. Navigation and new-window requests are blocked.
-
-## Verification
-
-```sh
-npm test
-npm run lint
-npm run test:desktop
+```bash
+npm run dist:mac
 ```
 
-The desktop suite launches the **built Electron app** with an isolated database. It exercises C++ execution, live cancellation, stress mismatches, saved test cases, and reopening history/workspaces after restart. Linux tests use headless Ozone; `--no-sandbox` is test-only and is not added to the application's launch scripts.
+The command builds the renderer, prepares the Express backend and generated Prisma client, and writes the `.dmg` to `release/`.
 
-The GitHub workflow runs on Linux and macOS with Node 24, Python and JDK 21. Java tests skip locally when `javac` is missing. See [the Day 2 / Day 3 audit](docs/day2-day3-audit.md) for scope and remaining release checks.
+You can also build in the cloud. In GitHub, open **Actions → Build macOS arm64 DMG → Run workflow**. Once the run succeeds, download **cp-stress-studio-macos-arm64** from the run summary’s **Artifacts** section.
 
-## Design attribution
+For the installed macOS app, supply `DATABASE_URL` and `JWT_SECRET` in `backend.env` under Electron’s user data directory. If the file is missing, the app reports the expected path at startup. PostgreSQL and the language toolchains are installed separately. Electron provides the cross-platform desktop foundation. The checked-in installer workflow targets macOS arm64.
 
-UI principles were informed by [unslop](https://github.com/heydamir/unslop), by Damir Sokolovsky ([@heydamir](https://x.com/heydamir)), licensed CC BY 4.0. The product direction is a dense, keyboard-oriented developer workbench: quiet graphite surfaces, 1px borders, compact controls, monospace data, and color reserved for verdicts and output differences.
+## Team
+
+| Team member | Core responsibilities |
+| --- | --- |
+| **[Member 1 name]** | Authentication, user sessions, problem catalog, and application navigation |
+| **[Member 2 name]** | Local execution, Express execution APIs, SSE, Prisma data access, SQL analytics, and macOS packaging |
+| **[Member 3 name]** | Stress-test orchestration, output diffing, counterexample persistence, and the stress workbench |
+
+Desktop workbench design principles were informed by [unslop](https://github.com/heydamir/unslop) by Damir Sokolovsky (CC BY 4.0).
