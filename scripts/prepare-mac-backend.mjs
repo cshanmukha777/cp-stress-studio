@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { cpSync, rmSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 if (process.platform !== "darwin" || process.arch !== "arm64") {
@@ -11,3 +12,9 @@ const options = { cwd, env, stdio: "inherit" };
 execFileSync("npm", ["ci"], options);
 execFileSync("npm", ["exec", "--", "prisma", "generate"], options);
 execFileSync("npm", ["prune", "--omit=dev"], { ...options, env: process.env });
+
+const source = fileURLToPath(new URL("../electron/", import.meta.url));
+const stage = fileURLToPath(new URL("../.mac-stage/electron/", import.meta.url));
+rmSync(stage, { recursive: true, force: true });
+cpSync(`${source}execution`, `${stage}execution`, { recursive: true });
+cpSync(`${source}package.json`, `${stage}package.json`);

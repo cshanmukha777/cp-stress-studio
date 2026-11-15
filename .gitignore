@@ -34,3 +34,4 @@ playwright-report/
 *.sqlite-wal
 server/.env
 templates/
+.mac-stage/

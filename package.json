@@ -53,6 +53,10 @@
     "appId": "com.cshanmukha777.cpstressstudio",
     "productName": "CP Stress Studio",
     "asar": true,
+    "afterPack": "scripts/after-pack.cjs",
+    "extraMetadata": {
+      "type": "commonjs"
+    },
     "directories": {
       "output": "release"
     },
@@ -82,7 +86,7 @@
         ]
       },
       {
-        "from": "electron",
+        "from": ".mac-stage/electron",
         "to": "app.asar.unpacked/electron",
         "filter": [
           "package.json",
