@@ -1,0 +1,122 @@
+# .github/workflows/build-dmg.yml
+name: Build macOS arm64 DMG
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-dmg:
+    # GitHub's supported standard Apple Silicon label is macos-15.
+    runs-on: macos-15
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Verify Apple Silicon runner
+        run: |
+          test "$(uname -m)" = arm64
+          test "$(node -p 'process.arch')" = arm64
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Build Vite frontend
+        env:
+          VITE_API_URL: http://127.0.0.1:4000
+        run: npm run build
+
+      - name: Prepare Express backend and Prisma client
+        run: node scripts/prepare-mac-backend.mjs
+
+      - name: Configure CommonJS and ASAR unpacking
+        run: |
+          node --input-type=commonjs <<'NODE'
+          const fs = require("node:fs");
+
+          function readJson(file) {
+            return JSON.parse(fs.readFileSync(file, "utf8"));
+          }
+
+          function writeJson(file, value) {
+            fs.writeFileSync(file, JSON.stringify(value, null, 2) + "\n");
+          }
+
+          function include(patterns, ...required) {
+            return [...new Set([].concat(patterns ?? [], required))];
+          }
+
+          const pkg = readJson("package.json");
+          delete pkg.type;
+
+          const candidates = [pkg.main, "electron/main.js", "electron/main.cjs"];
+          pkg.main = candidates.find(file =>
+            typeof file === "string" &&
+            /^electron\/main\.(?:js|cjs)$/.test(file) &&
+            fs.statSync(file, { throwIfNoEntry: false })?.isFile()
+          );
+          if (!pkg.main) throw new Error("Missing Electron main.js or main.cjs");
+
+          const electronManifest = "electron/package.json";
+          const electronPkg = fs.existsSync(electronManifest) ? readJson(electronManifest) : {};
+          electronPkg.type = "commonjs";
+          writeJson(electronManifest, electronPkg);
+
+          const build = pkg.build ??= {};
+          build.asar = true;
+          (build.directories ??= {}).output = "release";
+          build.files = include(
+            build.files ?? ["**/*"],
+            "electron/package.json",
+            "electron/**/*.js",
+            "electron/**/*.cjs"
+          );
+          build.asarUnpack = include(
+            build.asarUnpack,
+            "electron/execution/**/*.js",
+            "electron/execution/**/*.cjs"
+          );
+
+          writeJson("package.json", pkg);
+          console.log(`Packaging ${pkg.main}`);
+          NODE
+
+      - name: Package Apple Silicon DMG
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: npx --no-install electron-builder --mac dmg --arm64 --publish never
+
+      - name: Verify unpacked execution runner
+        shell: bash
+        run: |
+          shopt -s nullglob
+          apps=(release/mac-arm64/*.app)
+          if [[ "${#apps[@]}" -ne 1 ]]; then
+            echo "::error::Expected one arm64 app bundle in release/mac-arm64."
+            exit 1
+          fi
+
+          resources="${apps[0]}/Contents/Resources"
+          test -s "$resources/app.asar"
+          runner="$resources/app.asar.unpacked/electron/execution/runner"
+          if [[ ! -s "$runner.js" && ! -s "$runner.cjs" ]]; then
+            echo "::error::Execution runner is missing from app.asar.unpacked."
+            exit 1
+          fi
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: cp-stress-studio-macos-arm64
+          path: release/*.dmg
+          if-no-files-found: error
