@@ -1,8 +1,8 @@
+import { Link } from "react-router-dom";
 import { useState } from "react";
 import { api, setToken } from "./api";
 
-export default function AuthForm({ onAuthed }) {
-  const [mode, setMode] = useState("login");
+export default function AuthForm({ onAuthed, mode }) {
   const [form, setForm] = useState({
     email: "",
     password: "",
@@ -37,7 +37,12 @@ export default function AuthForm({ onAuthed }) {
       <h2>{mode === "login" ? "Sign in" : "Create account"}</h2>
       <label>
         Email
-        <input type="email" required value={form.email} onChange={set("email")} />
+        <input
+          type="email"
+          required
+          value={form.email}
+          onChange={set("email")}
+        />
       </label>
       <label>
         Password
@@ -53,7 +58,11 @@ export default function AuthForm({ onAuthed }) {
         <>
           <label>
             Display name
-            <input required value={form.displayName} onChange={set("displayName")} />
+            <input
+              required
+              value={form.displayName}
+              onChange={set("displayName")}
+            />
           </label>
           <label>
             Handle
@@ -69,16 +78,11 @@ export default function AuthForm({ onAuthed }) {
       <button className="primary" type="submit" disabled={busy}>
         {busy ? "Please wait..." : mode === "login" ? "Sign in" : "Register"}
       </button>
-      <button
-        type="button"
-        className="cat-link"
-        onClick={() => {
-          setMode(mode === "login" ? "register" : "login");
-          setError("");
-        }}
-      >
-        {mode === "login" ? "Need an account? Register" : "Have an account? Sign in"}
-      </button>
+      <Link className="cat-link" to={mode === "login" ? "/signup" : "/login"}>
+        {mode === "login"
+          ? "Need an account? Register"
+          : "Have an account? Sign in"}
+      </Link>
     </form>
   );
 }

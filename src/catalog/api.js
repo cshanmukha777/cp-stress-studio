@@ -18,6 +18,13 @@ export const setToken = (token) => {
   }
 };
 
+export function rejectSession(token) {
+  if (token && getToken() === token) {
+    setToken(null);
+    window.dispatchEvent(new Event("cp-session-expired"));
+  }
+}
+
 export async function request(path, { method = "GET", body } = {}) {
   const headers = {};
   if (body) headers["Content-Type"] = "application/json";
@@ -37,8 +44,7 @@ export async function request(path, { method = "GET", body } = {}) {
   if (res.status === 204) return null;
   const data = await res.json().catch(() => ({}));
   if (res.status === 401 && token) {
-    setToken(null);
-    window.dispatchEvent(new Event("cp-session-expired"));
+    rejectSession(token);
     throw new Error("Session expired. Please sign in again.");
   }
   if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
@@ -54,20 +60,28 @@ export const api = {
   problems: (params) => request(`/problems?${new URLSearchParams(params)}`),
   tags: (params = {}) => request(`/tags?${new URLSearchParams(params)}`),
   tag: (id) => request(`/tags/${id}`),
-  createTag: (body) => request('/tags', { method: 'POST', body }),
-  updateTag: (id, body) => request(`/tags/${id}`, { method: 'PUT', body }),
-  deleteTag: (id) => request(`/tags/${id}`, { method: 'DELETE' }),
+  createTag: (body) => request("/tags", { method: "POST", body }),
+  updateTag: (id, body) => request(`/tags/${id}`, { method: "PUT", body }),
+  deleteTag: (id) => request(`/tags/${id}`, { method: "DELETE" }),
   tagProblems: (id) => request(`/tags/${id}/problems`),
   problemTags: (problemId) => request(`/problems/${problemId}/tags`),
   replaceProblemTags: (problemId, tagIds) =>
-    request(`/problems/${problemId}/tags`, { method: 'POST', body: { tagIds, replace: true } }),
+    request(`/problems/${problemId}/tags`, {
+      method: "POST",
+      body: { tagIds, replace: true },
+    }),
   addProblemTags: (problemId, tagIds) =>
-    request(`/problems/${problemId}/tags`, { method: 'POST', body: { tagIds } }),
+    request(`/problems/${problemId}/tags`, {
+      method: "POST",
+      body: { tagIds },
+    }),
   removeProblemTag: (problemId, tagId) =>
-    request(`/problems/${problemId}/tags/${tagId}`, { method: 'DELETE' }),
+    request(`/problems/${problemId}/tags/${tagId}`, { method: "DELETE" }),
   profile: () => request("/profile"),
   updateProfile: (body) => request("/profile", { method: "PUT", body }),
   templates: () => request("/templates"),
-  exportTemplate: (slug) => request(`/templates/export/${slug}`, { method: "POST" }),
-  importTemplate: (slug) => request(`/templates/import/${slug}`, { method: "POST" }),
+  exportTemplate: (slug) =>
+    request(`/templates/export/${slug}`, { method: "POST" }),
+  importTemplate: (slug) =>
+    request(`/templates/import/${slug}`, { method: "POST" }),
 };

@@ -1,3 +1,4 @@
+import { Routes, Route, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import CodeEditor from "./components/CodeEditor";
 import Result from "./components/Result";
@@ -40,7 +41,7 @@ export default function App() {
   const [caseNumber, setCaseNumber] = useState(undefined);
   const [problemRecords, setProblemRecords] = useState(false);
   const execution = useExecution();
-  const [showCatalog, setShowCatalog] = useState(false);
+  const navigate = useNavigate();
   const [showUnity, setShowUnity] = useState(false);
   const snapshot = () => ({
     single,
@@ -180,7 +181,7 @@ export default function App() {
         <h1>CP Stress Studio</h1>
         <span className="muted">Local execution workbench</span>
         <div className="spacer" />
-        <button onClick={() => setShowCatalog(true)}>
+        <button onClick={() => navigate("/catalog")}>
           Account &amp; Problems
         </button>
         <button onClick={() => setShowUnity(true)}>3D View</button>
@@ -213,35 +214,49 @@ export default function App() {
         ))}
         <div className="spacer" />
         <label>
-            Problem ID
-            <input
-              type="number"
-              min="1"
-              value={problemId}
-              disabled={execution.busy}
-              onChange={(event) => {
-                setProblemId(event.target.value);
-                setSolutionId(undefined);
-                setCaseNumber(undefined);
-                setProblemRecords(false);
-              }}
-            />
+          Problem ID
+          <input
+            type="number"
+            min="1"
+            value={problemId}
+            disabled={execution.busy}
+            onChange={(event) => {
+              setProblemId(event.target.value);
+              setSolutionId(undefined);
+              setCaseNumber(undefined);
+              setProblemRecords(false);
+            }}
+          />
         </label>
         {mode === "stress" && (
           <>
             <label>
               Iterations{" "}
-              <input type="number" min="1" max="10000" value={iterations}
-                onChange={(e) => setIterations(Number(e.target.value))} />
+              <input
+                type="number"
+                min="1"
+                max="10000"
+                value={iterations}
+                onChange={(e) => setIterations(Number(e.target.value))}
+              />
             </label>
             <label>
               Random seed{" "}
-              <input type="number" min="0" max="4294967295" placeholder="random"
-                value={randomSeed} onChange={(e) => setRandomSeed(e.target.value)} />
+              <input
+                type="number"
+                min="0"
+                max="4294967295"
+                placeholder="random"
+                value={randomSeed}
+                onChange={(e) => setRandomSeed(e.target.value)}
+              />
             </label>
             <label className="inline-option">
-              <input type="checkbox" checked={stopOnFailure}
-                onChange={(e) => setStopOnFailure(e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={stopOnFailure}
+                onChange={(e) => setStopOnFailure(e.target.checked)}
+              />
               Stop on first failure
             </label>
           </>
@@ -416,7 +431,12 @@ export default function App() {
           }}
         />
       )}
-      {showCatalog && <CatalogPanel onClose={() => setShowCatalog(false)} />}
+      <Routes>
+        <Route path="*" element={null} />
+        <Route path="/login" element={<CatalogPanel mode="login" />} />
+        <Route path="/signup" element={<CatalogPanel mode="register" />} />
+        <Route path="/catalog" element={<CatalogPanel />} />
+      </Routes>
       {showUnity && <UnityPanel onClose={() => setShowUnity(false)} />}
     </main>
   );
